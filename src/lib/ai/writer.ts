@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { chatCompletion } from './llm-client';
 import { FIXED_HASHTAGS } from '@/lib/constants';
 
 const SYSTEM_PROMPT = `Bạn là Phương — người làm Growth & Content, chuyên về AI tools, Affiliate Marketing và AEO/SEO. Viết bài đúng giọng văn bài mẫu của Phương: thực chiến, sắc sảo, có chiều sâu phân tích, không sáo rỗng.
@@ -38,31 +38,15 @@ BỐ CỤC:
 
 Lưu ý: Bám cực sát số liệu từ SOURCE. NHƯNG không dịch khô khan, phải có PHÂN TÍCH SÂU ở bên dưới để độc giả thấy giá trị. Câu văn ngắn, nhịp điệu nhanh. Độ dài khoảng 700 - 800 ký tự (150-180 từ).`;
 
-function getLLMClient() {
-  const apiKey = process.env.LLM_API_KEY;
-  if (!apiKey) throw new Error("Missing LLM_API_KEY");
-  return new OpenAI({
-    apiKey,
-    baseURL: process.env.LLM_BASE_URL || 'https://api.openai.com/v1',
-  });
-}
-
 export async function writeArticle(title: string, summary: string, format: string) {
-  const client = getLLMClient();
-  const model = process.env.LLM_MODEL || 'gpt-4o';
   const formatPrompt = format === 'pov' ? POV_PROMPT : NEWS_PROMPT;
 
-  const res = await client.chat.completions.create({
-    model,
-    max_tokens: 1500,
+  const text = (await chatCompletion({
+    system: `${SYSTEM_PROMPT}\n\n${formatPrompt}`,
+    userMessage: `Viết bài Facebook post dựa trên tin tức sau:\n\nTiêu đề: ${title}\nNội dung: ${summary}\n\nSau bài viết, xuống dòng và thêm ĐÚNG 2 hashtags phù hợp với chủ đề (tiếng Việt không dấu hoặc tiếng Anh, viết liền, bắt đầu bằng #). Chỉ 2 hashtag thôi.`,
+    maxTokens: 1500,
     temperature: 0.85,
-    messages: [
-      { role: 'system', content: `${SYSTEM_PROMPT}\n\n${formatPrompt}` },
-      { role: 'user', content: `Viết bài Facebook post dựa trên tin tức sau:\n\nTiêu đề: ${title}\nNội dung: ${summary}\n\nSau bài viết, xuống dòng và thêm ĐÚNG 2 hashtags phù hợp với chủ đề (tiếng Việt không dấu hoặc tiếng Anh, viết liền, bắt đầu bằng #). Chỉ 2 hashtag thôi.` }
-    ]
-  });
-
-  const text = (res.choices[0]?.message?.content || '').trim();
+  })).trim();
   const hashtagIndex = text.lastIndexOf('#');
   const firstHashtagLine = text.lastIndexOf('\n', hashtagIndex);
   const content = text.substring(0, firstHashtagLine).trim();

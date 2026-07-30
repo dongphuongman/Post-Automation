@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env.local') });
 const fs = require('fs');
 const { execSync } = require('child_process');
+const { llmChatCompletion } = require('../lib/llm-fetch');
 
 // ===== TTS (giữ nguyên — OpenAI Nova) =====
 async function generateTTS(textToRead) {
@@ -118,32 +119,17 @@ CHỈ TRẢ VỀ JSON HỢP LỆ, KHÔNG GIẢI THÍCH THÊM. ĐỊNH DẠNG JSO
 Nội dung bài:
 ${rawContent}`;
 
-  const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
-  const llmKey = process.env.LLM_API_KEY;
-  const llmModel = process.env.LLM_MODEL || 'gpt-4o';
-  if (llmKey) {
+  if (process.env.LLM_API_KEY) {
     try {
-      const res = await fetch(`${llmBaseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${llmKey}`
-        },
-        body: JSON.stringify({
-          model: llmModel,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.4,
-          response_format: { type: 'json_object' }
-        })
+      const text = await llmChatCompletion({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        jsonMode: true,
       });
-      const data = await res.json();
-      if (data.choices && data.choices[0] && data.choices[0].message) {
-        const text = data.choices[0].message.content;
-        const cleanedText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanedText);
-        console.log(`✅ Trích xuất stat data thành công (${llmModel})!`);
-        return normalizeStatData(parsed);
-      }
+      const cleanedText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanedText);
+      console.log(`✅ Trích xuất stat data thành công!`);
+      return normalizeStatData(parsed);
     } catch(e) {
       console.log('⚠️ Lỗi LLM extract, thử Gemini...', e.message);
     }

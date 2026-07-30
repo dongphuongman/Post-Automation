@@ -9,34 +9,20 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const { sql } = require('./lib/db');
 const { PAGE_NAME, GROUPS, FB_API_VERSION } = require('./lib/config');
-
-const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
-const LLM_API_KEY = process.env.LLM_API_KEY;
-const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4o';
+const { llmChatCompletion } = require('./lib/llm-fetch');
 
 async function spinContent(originalContent) {
-  if (!LLM_API_KEY) return originalContent;
+  if (!process.env.LLM_API_KEY) return originalContent;
   try {
     console.log('   🔄 Đang spin lại nội dung khoảng 30%...');
-    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${LLM_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: LLM_MODEL,
-        messages: [{
-          role: 'user',
-          content: `Viết lại bài post Facebook sau đây. Giữ đúng ý nghĩa, định dạng, cách xuống dòng, độ dài và các hashtags. Chỉ viết lại khoảng 30% câu chữ (dùng từ đồng nghĩa, hoặc diễn đạt khác đi một chút) để bài viết mượt mà và không trùng lặp 100%. Trả về nguyên chuẩn văn bản bài post mới, KHÔNG THÊM CÂU CHÀO HAY MỞ ĐẦU.\n\nBài gốc:\n${originalContent}`
-        }],
-        temperature: 0.7
-      })
+    const result = await llmChatCompletion({
+      messages: [{
+        role: 'user',
+        content: `Viết lại bài post Facebook sau đây. Giữ đúng ý nghĩa, định dạng, cách xuống dòng, độ dài và các hashtags. Chỉ viết lại khoảng 30% câu chữ (dùng từ đồng nghĩa, hoặc diễn đạt khác đi một chút) để bài viết mượt mà và không trùng lặp 100%. Trả về nguyên chuẩn văn bản bài post mới, KHÔNG THÊM CÂU CHÀO HAY MỞ ĐẦU.\n\nBài gốc:\n${originalContent}`
+      }],
+      temperature: 0.7,
     });
-    const data = await res.json();
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      return data.choices[0].message.content.trim();
-    }
+    return result.trim();
   } catch(e) {
     console.log('   ⚠️ Lỗi spin content:', e.message);
   }
@@ -431,33 +417,19 @@ async function uploadReelsGraphAPI(videoPath, description, scheduledTime) {
 
 // Hàm AI tự động Tóm tắt nội dung dài sang Kịch bản Video giật gân, Không xưng ngôi, Trân thuật khách quan
 async function rewriteForVideo(rawContent) {
-  if (!LLM_API_KEY) {
+  if (!process.env.LLM_API_KEY) {
     console.log("⚠️ Thiếu LLM_API_KEY, chuyển sang dùng Gemini...");
     return rewriteForVideoGemini(rawContent);
   }
   try {
-    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${LLM_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: LLM_MODEL,
-        messages: [{
-          role: 'user',
-          content: `Dựa vào bài viết sau, hãy viết hoàn thiện thành một KỊCH BẢN VIDEO REELS cực kỳ chi tiết, độ dài khoảng từ 1000 đến 1200 ký tự. BẮT BUỘC: \n- Đọc dạng thông báo giật gân, ngôi kể trần thuật khách quan.\n- Tuyệt đối KHÔNG có đại từ xưng hô, KHÔNG xưng tên (kể cả tên Phương, tôi, mình, chúng tôi).\n- LƯU Ý PHÁT ÂM: Nếu viết về Trí tuệ nhân tạo, BẮT BUỘC phải viết là "A.I". Tuyệt đối không viết là "AI" để tránh máy đọc nhầm. Còn chữ "ai" (chỉ người) thì vẫn viết bình thường.\n- Đảm bảo kịch bản hoàn chỉnh từ đầu đến cuối, không bị cắt cụt giữa chừng.\n- Không gạch đầu dòng, không in đậm, viết thành một khối văn liên tục, mạch lạc, cuốn hút.\n- Chia nội dung thành 8-10 câu ngắn để dễ hiển thị caption.\n\nNội dung gốc:\n${rawContent}`
-        }],
-        temperature: 0.7
-      })
+    const result = await llmChatCompletion({
+      messages: [{
+        role: 'user',
+        content: `Dựa vào bài viết sau, hãy viết hoàn thiện thành một KỊCH BẢN VIDEO REELS cực kỳ chi tiết, độ dài khoảng từ 1000 đến 1200 ký tự. BẮT BUỘC: \n- Đọc dạng thông báo giật gân, ngôi kể trần thuật khách quan.\n- Tuyệt đối KHÔNG có đại từ xưng hô, KHÔNG xưng tên (kể cả tên Phương, tôi, mình, chúng tôi).\n- LƯU Ý PHÁT ÂM: Nếu viết về Trí tuệ nhân tạo, BẮT BUỘC phải viết là "A.I". Tuyệt đối không viết là "AI" để tránh máy đọc nhầm. Còn chữ "ai" (chỉ người) thì vẫn viết bình thường.\n- Đảm bảo kịch bản hoàn chỉnh từ đầu đến cuối, không bị cắt cụt giữa chừng.\n- Không gạch đầu dòng, không in đậm, viết thành một khối văn liên tục, mạch lạc, cuốn hút.\n- Chia nội dung thành 8-10 câu ngắn để dễ hiển thị caption.\n\nNội dung gốc:\n${rawContent}`
+      }],
+      temperature: 0.7,
     });
-    const data = await res.json();
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const result = data.choices[0].message.content.trim();
-      return result.replace(/[*_#]/g, '');
-    } else {
-      throw new Error("Invalid response format");
-    }
+    return result.trim().replace(/[*_#]/g, '');
   } catch(e) {
     console.log("⚠️ Lỗi LLM, dùng tạm Gemini...", e.message);
     return rewriteForVideoGemini(rawContent);
