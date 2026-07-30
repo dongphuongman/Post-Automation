@@ -468,7 +468,7 @@ async function rewriteForVideoGemini(rawContent) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) { console.error('Missing GEMINI_API_KEY'); return rawContent.substring(0, 500); }
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-2.0-flash'}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
