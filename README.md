@@ -1,48 +1,134 @@
-<div align="center">
-  <h1>🚀 Ultimate AI Content Pipeline</h1>
-  <p><b>Hệ thống tự động hóa Content số 1: Từ Research, Lên Kịch Bản đến Generate Video!</b></p>
-</div>
+# Marketing Automation
 
-<br/>
-
-## 🎯 Về Dự Án Này
-Chào mừng bạn đến với **Ultimate AI Content Pipeline** - Vũ khí bí mật giúp các nhà sáng tạo nội dung, Marketer và doanh nghiệp tối ưu hóa quy trình làm việc lên đến **90%**!
-
-Đây không chỉ là một công cụ viết bài, đây là một **dây chuyền sản xuất Content khép kín** được vận hành hoàn toàn bởi sức mạnh của AI (Claude 3, OpenAI) và công nghệ Render Video tân tiến (Remotion). Bạn chỉ cần nhập một từ khóa, AI sẽ lo toàn bộ phần còn lại!
+**Pipeline tự động hóa content marketing: Thu thập tin &rarr; Viết bài bằng AI &rarr; Render video &rarr; Đăng Facebook.**
 
 ---
 
-## ⚡ Tính Năng Vượt Trội (Superpowers)
+## Tổng quan
 
-### 1. 📡 Cào Tin Độc Quyền (Auto-Scan Research)
-- **Tự động săn tin nóng hổi:** Khác với các tool AI thông thường chỉ dùng kiến thức cũ, hệ thống này tự động crawl và phân tích dữ liệu thực tế từ các đầu báo lớn như *TechCrunch, a16z, X (Twitter), LinkedIn* trong vòng 24h qua.
-- **Dữ liệu thực, Insight chất:** Bóc tách những insight sâu sắc nhất, giúp bài viết của bạn luôn mang tính cập nhật, dẫn đầu xu hướng và đầy đủ số liệu chứng minh (data-backed).
+Hệ thống 3 bước khép kín cho content creator và marketer:
 
-### 2. 🧠 Đa Dạng Hóa Format Bằng AI (Claude/OpenAI)
-- **Cá nhân hóa tột đỉnh:** Viết bài theo vô vàn định dạng từ *Toplist, POV (Quan điểm góc nhìn), Case Study* cho đến *How-to*.
-- **Đa ngôn ngữ & Giọng văn:** Tự động tạo song song bản Tiếng Anh & Tiếng Việt, đồng thời linh hoạt điều chỉnh giọng văn (chuyên gia, thân thiện, hài hước) theo đúng đối tượng độc giả mục tiêu.
+1. **Thu thập tin** &mdash; Crawl tin tức từ nhiều nguồn (RSS, Brave Search, RapidAPI) theo từ khóa
+2. **Chọn & Viết bài** &mdash; AI viết bài theo giọng văn cá nhân, hỗ trợ format POV / News, tự động sinh ảnh minh họa
+3. **Duyệt & Đăng** &mdash; Đăng Facebook Page/Group trực tiếp hoặc hẹn lịch, kèm video Reels tự động render
 
-### 3. 🎬 Render Video & Hình Ảnh Tự Động (Remotion Integration)
-- **Biến chữ thành hình trong nháy mắt:** Không cần biết edit video! Tự động render infographic và video ngắn từ chính nội dung bài viết.
-- **Tối ưu đa nền tảng:** Xuất video tỉ lệ chuẩn phù hợp cho mọi nền tảng Reels, TikTok, Shorts giúp bạn duy trì sự hiện diện liên tục mà không tốn sức lực.
+## Tech Stack
 
-### 4. 🔗 Kiến Trúc Tối Ưu, Mở Rộng Dễ Dàng
-- Tích hợp linh hoạt với các API mạnh mẽ: **OpenAI, Anthropic (Claude), RapidAPI**.
-- Giao diện Next.js siêu mượt, thân thiện, chỉ cần vài cú click là có ngay bài viết chất lượng cao để lên lịch đăng.
+| Layer | Công nghệ |
+|-------|-----------|
+| Frontend | Next.js 16, React 18, TypeScript |
+| Database | Neon Postgres (serverless) |
+| AI / LLM | OpenAI-compatible API (OpenAI, Groq, Together, Ollama, ...) |
+| Image Gen | DALL-E 3 hoặc provider tương thích |
+| Video | Remotion + FFmpeg, OpenAI TTS |
+| Social | Facebook Graph API v21.0, Playwright automation |
+| Scraping | Brave Search API, RapidAPI, RSS Parser |
 
----
+## Cài đặt
 
-## 💡 Tại sao bạn nên dùng dự án này?
+```bash
+git clone https://github.com/dongphuongman/Post-Automation.git
+cd Post-Automation
+npm install
+```
 
-Nếu bạn đang mệt mỏi vì cạn kiệt ý tưởng, mất quá nhiều thời gian lướt web tìm tin tức, hay đau đầu với việc làm video... thì mã nguồn này chính là **giải pháp All-in-One** dành cho bạn. Nó biến bạn thành một tòa soạn thu nhỏ hoạt động 24/7.
+### Cấu hình env
 
-Chỉ cần Clone về, Setup API là bạn đã sở hữu ngay một cỗ máy in Content vô tận!
+Copy `.env.example` thành `.env` và điền các giá trị:
 
----
+```env
+# Database
+POSTGRES_URL=postgresql://user:password@host/dbname
 
-## 🚀 Hướng Dẫn Cài Đặt (Getting Started)
-Đừng lo nếu bạn không phải là lập trình viên giỏi. Mình đã chuẩn bị sẵn một file hướng dẫn cực kỳ chi tiết từ A-Z.
-👉 Vui lòng mở file **`HUONG_DAN_CAI_DAT.md`** (có đính kèm sẵn trong thư mục dự án) để bắt đầu sử dụng ngay lập tức!
+# LLM — bất kỳ provider nào hỗ trợ OpenAI-compatible API
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=sk-...
+LLM_MODEL=gpt-4o
 
----
-*⭐️ Nếu bạn thấy dự án này hữu ích, đừng quên cho mình xin 1 **Star** nhé!*
+# Image (tùy chọn, mặc định dùng LLM_API_KEY)
+# IMAGE_BASE_URL=
+# IMAGE_API_KEY=
+# IMAGE_MODEL=dall-e-3
+
+# TTS cho video (hiện chỉ hỗ trợ OpenAI)
+OPENAI_API_KEY=sk-...
+
+# Scraping
+RAPID_API_KEY=
+BRAVE_API_KEY=
+
+# Facebook
+FACEBOOK_PAGE_ID=
+FACEBOOK_ACCESS_TOKEN=
+FACEBOOK_USER_TOKEN=
+```
+
+### Chạy
+
+```bash
+npm run dev        # Dev server tại http://localhost:3000
+npm run build      # Production build
+```
+
+### Bot video (tùy chọn)
+
+```bash
+cd bot/video-maker
+npm install
+# Xem bot/video-maker/README hoặc render-cmd.js để biết cách dùng
+```
+
+## Cấu trúc dự án
+
+```
+src/
+├── app/                  # Next.js App Router
+│   ├── api/              # API routes
+│   │   ├── research/     # Crawl & tìm tin tức
+│   │   ├── write/        # AI viết bài
+│   │   ├── articles/     # CRUD bài viết
+│   │   ├── posts/        # Quản lý bài đăng
+│   │   ├── post-facebook/ # Đăng Facebook
+│   │   ├── stats/        # Thống kê
+│   │   └── ...
+│   ├── globals.css       # Design system + responsive
+│   └── page.tsx          # Trang chính (3-step pipeline)
+├── components/
+│   ├── layout/           # Sidebar, Stepper (mobile drawer)
+│   └── pipeline/         # StepResearch, StepSelect, StepReview
+├── hooks/                # usePosts, custom hooks
+└── lib/
+    ├── ai/               # writer.ts, image-generator.ts
+    ├── db/               # Neon Postgres queries
+    └── constants.ts
+
+bot/
+├── post-groups.js        # Bot đăng bài vào groups
+├── video-maker/          # Remotion video rendering
+│   └── src/              # Video components (MainVideo, BlockVideo)
+└── scripts/              # Utility scripts
+
+docs/
+└── huong-dan-su-dung.html  # Hướng dẫn sử dụng (tiếng Việt)
+```
+
+## LLM Provider
+
+Hệ thống dùng format OpenAI-compatible, cho phép chuyển đổi provider dễ dàng:
+
+| Provider | `LLM_BASE_URL` | Model ví dụ |
+|----------|----------------|-------------|
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Together | `https://api.together.xyz/v1` | `meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo` |
+| Ollama | `http://localhost:11434/v1` | `llama3.1` |
+
+## Responsive
+
+Giao diện hỗ trợ desktop & mobile:
+- Desktop: sidebar cố định + 3-step pipeline
+- Mobile: drawer sidebar, stepper thu gọn, layout xếp dọc, touch-friendly (44px targets)
+
+## License
+
+MIT
