@@ -7,9 +7,45 @@ if (!process.env.POSTGRES_URL) {
 export const sql = neon(process.env.POSTGRES_URL || 'postgresql://dummy:dummy@dummy/dummy');
 
 export async function initDb() {
-  await sql`CREATE TABLE IF NOT EXISTS sources (id TEXT PRIMARY KEY, name TEXT, url TEXT, type TEXT DEFAULT 'rss', rss_url TEXT, active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
-  await sql`CREATE TABLE IF NOT EXISTS articles (id TEXT PRIMARY KEY, source_id TEXT, title TEXT, url TEXT UNIQUE, summary TEXT, original_image_url TEXT, published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, status TEXT DEFAULT 'new', format TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
-  await sql`CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, article_id TEXT, format TEXT, content TEXT, hashtags TEXT, generated_image_url TEXT, original_image_url TEXT, facebook_post_id TEXT, scheduled_time TEXT, status TEXT DEFAULT 'draft', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
+  await sql`CREATE TABLE IF NOT EXISTS sources (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    url TEXT,
+    type TEXT DEFAULT 'rss',
+    rss_url TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+
+  await sql`CREATE TABLE IF NOT EXISTS articles (
+    id TEXT PRIMARY KEY,
+    source_id TEXT,
+    title TEXT,
+    url TEXT UNIQUE,
+    summary TEXT,
+    original_image_url TEXT,
+    published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'new',
+    format TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+
+  await sql`CREATE TABLE IF NOT EXISTS posts (
+    id TEXT PRIMARY KEY,
+    article_id TEXT,
+    format TEXT,
+    content TEXT,
+    hashtags TEXT,
+    generated_image_url TEXT,
+    original_image_url TEXT,
+    facebook_post_id TEXT,
+    scheduled_time BIGINT,
+    status TEXT DEFAULT 'draft',
+    create_video BOOLEAN DEFAULT FALSE,
+    video_status VARCHAR(20) DEFAULT 'none',
+    selected_image_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
 }
 
 export async function seedDb() {

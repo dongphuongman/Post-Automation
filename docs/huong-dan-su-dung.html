@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hướng dẫn sử dụng — Marketing Automation</title>
+<style>
+  :root {
+    --bg: #f8f9fc;
+    --surface: #ffffff;
+    --text: #1a1a2e;
+    --text-secondary: #555770;
+    --text-muted: #8b8da3;
+    --accent: #6366f1;
+    --accent-light: #eef0ff;
+    --accent-dark: #312e81;
+    --border: #e2e4ed;
+    --code-bg: #1e1b4b;
+    --code-text: #e0e7ff;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(26,26,46,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0e1a;
+      --surface: #1a1930;
+      --text: #e0e2f0;
+      --text-secondary: #a0a3bd;
+      --text-muted: #6b6e8a;
+      --accent: #818cf8;
+      --accent-light: #1e1b4b;
+      --accent-dark: #c7d2fe;
+      --border: #2a2946;
+      --code-bg: #0d0b1a;
+      --code-text: #c7d2fe;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr min(720px, 100%) 1fr;
+    min-height: 100vh;
+  }
+
+  .page > * { grid-column: 2; }
+
+  .hero {
+    grid-column: 1 / -1;
+    background: linear-gradient(195deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+    padding: 64px 24px 56px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.25) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(67,56,202,0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(199,210,254,0.7);
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .hero h1 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    text-wrap: balance;
+    position: relative;
+  }
+
+  .hero p {
+    font-size: 16px;
+    color: rgba(224,231,255,0.7);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+    position: relative;
+  }
+
+  .content {
+    padding: 0 24px 80px;
+  }
+
+  /* ---- TOC ---- */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: -28px 0 48px;
+    box-shadow: var(--shadow);
+    position: relative;
+    z-index: 1;
+  }
+
+  .toc-title {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 32px;
+  }
+
+  .toc li {
+    counter-increment: toc;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    color: var(--accent);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-right: 8px;
+    font-size: 12px;
+  }
+
+  .toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .toc a:hover { color: var(--accent); }
+
+  /* ---- Sections ---- */
+  .section {
+    margin-bottom: 56px;
+  }
+
+  h2 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--text);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    text-wrap: balance;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  h2 .num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-light);
+    border-radius: 6px;
+  }
+
+  h3 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 32px 0 12px;
+    letter-spacing: -0.2px;
+  }
+
+  h4 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin: 24px 0 8px;
+  }
+
+  p { margin-bottom: 14px; }
+  p:last-child { margin-bottom: 0; }
+
+  ul, ol {
+    margin: 0 0 16px 24px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  strong {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: rgba(99,102,241,0.3);
+    text-underline-offset: 2px;
+    transition: text-decoration-color 0.15s;
+  }
+
+  a:hover {
+    text-decoration-color: var(--accent);
+  }
+
+  /* ---- Code ---- */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.88em;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 500;
+    word-break: break-word;
+  }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    margin: 16px 0;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+    border-radius: 0;
+  }
+
+  .cmd::before {
+    content: '$ ';
+    color: #6366f1;
+    user-select: none;
+  }
+
+  /* ---- Tables ---- */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 16px 0;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  thead {
+    background: var(--accent-light);
+  }
+
+  th {
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--text);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  td code {
+    font-size: 12px;
+  }
+
+  /* ---- Callouts ---- */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-light);
+    padding: 16px 20px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 20px 0;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .callout-warn {
+    border-left-color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  }
+
+  .callout-danger {
+    border-left-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  }
+
+  .callout-label {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .callout .callout-label { color: var(--accent); }
+  .callout-warn .callout-label { color: var(--warning); }
+  .callout-danger .callout-label { color: var(--danger); }
+
+  /* ---- Steps visual ---- */
+  .pipeline-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 24px 0;
+  }
+
+  .p-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    position: relative;
+  }
+
+  .p-step-num {
+    font-family: system-ui, -apple-system, sans-serif;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+  }
+
+  .p-step-title {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .p-step-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .p-step + .p-step::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border: 5px solid transparent;
+    border-left-color: var(--accent);
+  }
+
+  /* ---- Flow diagram ---- */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 14px 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+  }
+
+  .flow-node {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .flow-arrow {
+    color: var(--text-muted);
+    font-size: 16px;
+  }
+
+  /* ---- Footer ---- */
+  .footer {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 600px) {
+    .hero { padding: 48px 20px 44px; }
+    .content { padding: 0 16px 60px; }
+    .toc ol { grid-template-columns: 1fr; }
+    .pipeline-steps { grid-template-columns: 1fr; }
+    .p-step + .p-step::before { display: none; }
+    h2 { font-size: 20px; }
+    pre { padding: 16px; font-size: 12px; }
+    table { font-size: 13px; }
+    th, td { padding: 8px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero">
+    <div class="hero-eyebrow">Documentation v1.0</div>
+    <h1>Hướng dẫn sử dụng<br>Marketing Automation</h1>
+    <p>Hệ thống tự động hóa nội dung marketing cho Facebook sử dụng AI — từ cào tin, viết bài, tạo ảnh đến đăng bài và tạo video Reels.</p>
+  </div>
+
+  <div class="content">
+    <nav class="toc">
+      <div class="toc-title">Mục lục</div>
+      <ol>
+        <li><a href="#overview">Tổng quan hệ thống</a></li>
+        <li><a href="#requirements">Yêu cầu hệ thống</a></li>
+        <li><a href="#install">Cài đặt</a></li>
+        <li><a href="#env">Cấu hình biến môi trường</a></li>
+        <li><a href="#run">Chạy ứng dụng</a></li>
+        <li><a href="#step1">Bước 1 — Thu thập tin</a></li>
+        <li><a href="#step2">Bước 2 — Chọn &amp; Định dạng</a></li>
+        <li><a href="#step3">Bước 3 — Duyệt &amp; Đăng bài</a></li>
+        <li><a href="#bot">Bot đăng nhóm Facebook</a></li>
+        <li><a href="#video">Video Maker (Reels)</a></li>
+        <li><a href="#db">Quản lý cơ sở dữ liệu</a></li>
+        <li><a href="#troubleshoot">Xử lý lỗi thường gặp</a></li>
+      </ol>
+    </nav>
+
+    <section class="section" id="overview">
+      <h2><span class="num">01</span> Tổng quan hệ thống</h2>
+      <p>
+        Marketing Automation là công cụ web giúp tự động hóa toàn bộ quy trình tạo nội dung Facebook marketing. Hệ thống sử dụng AI để cào tin tức, viết lại nội dung tiếng Việt, tạo ảnh minh họa, và đăng bài lên Facebook Page, nhóm (Groups), và Reels.
+      </p>
+
+      <div class="pipeline-steps">
+        <div class="p-step">
+          <div class="p-step-num">1</div>
+          <div class="p-step-title">Thu thập tin</div>
+          <div class="p-step-desc">Cào tin từ RSS, X (Twitter), Instagram</div>
+        </div>
+        <div class="p-step">
+          <div class="p-step-num">2</div>
+          <div class="p-step-title">Chọn &amp; Định dạng</div>
+          <div class="p-step-desc">AI viết bài &amp; tạo ảnh minh họa</div>
+        </div>
+        <div class="p-step">
+          <div class="p-step-num">3</div>
+          <div class="p-step-title">Duyệt &amp; Đăng bài</div>
+          <div class="p-step-desc">Duyệt, sửa, đăng lên Facebook</div>
+        </div>
+      </div>
+
+      <h3>Công nghệ sử dụng</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Thành phần</th><th>Công nghệ</th><th>Vai trò</th></tr></thead>
+          <tbody>
+            <tr><td>Web App</td><td>Next.js 16, React 18, TypeScript</td><td>Giao diện quản lý pipeline</td></tr>
+            <tr><td>Viết bài</td><td>Anthropic Claude (claude-opus-4-5)</td><td>Viết nội dung Facebook tiếng Việt</td></tr>
+            <tr><td>Tạo ảnh</td><td>OpenAI DALL-E 3</td><td>Tạo ảnh minh họa 1024&times;1024</td></tr>
+            <tr><td>Video</td><td>Remotion + OpenAI TTS</td><td>Tạo video Reels với voiceover</td></tr>
+            <tr><td>Database</td><td>Neon Postgres (serverless)</td><td>Lưu trữ dữ liệu</td></tr>
+            <tr><td>Facebook</td><td>Graph API v21.0 + Playwright</td><td>Đăng bài Page, Groups, Reels</td></tr>
+            <tr><td>Cào tin</td><td>RSS Parser, RapidAPI, Brave Search</td><td>Thu thập tin từ nhiều nguồn</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="requirements">
+      <h2><span class="num">02</span> Yêu cầu hệ thống</h2>
+      <ul>
+        <li><strong>Node.js</strong> phiên bản 18 trở lên</li>
+        <li><strong>npm</strong> (đi kèm Node.js)</li>
+        <li><strong>Neon Postgres</strong> — tạo database miễn phí tại <code>neon.tech</code></li>
+        <li><strong>API keys</strong> cho các dịch vụ bên dưới (xem mục Cấu hình)</li>
+        <li><strong>Facebook Page</strong> với access token có quyền đăng bài</li>
+        <li><strong>Chromium</strong> (cho bot đăng nhóm — Playwright sẽ tự cài)</li>
+      </ul>
+    </section>
+
+    <section class="section" id="install">
+      <h2><span class="num">03</span> Cài đặt</h2>
+      <h3>Web App (giao diện chính)</h3>
+<pre><code><span class="cmd">git clone &lt;repo-url&gt;</span>
+<span class="cmd">cd marketing-pineline-share</span>
+<span class="cmd">npm install</span>
+<span class="cmd">cp .env.example .env.local</span></code></pre>
+      <p>Mở file <code>.env.local</code> và điền đầy đủ các biến môi trường (xem mục tiếp theo).</p>
+
+      <h3>Bot đăng nhóm</h3>
+<pre><code><span class="cmd">cd bot</span>
+<span class="cmd">npm install</span>
+<span class="cmd">npx playwright install chromium</span></code></pre>
+
+      <h3>Video Maker</h3>
+<pre><code><span class="cmd">cd bot/video-maker</span>
+<span class="cmd">npm install</span></code></pre>
+    </section>
+
+    <section class="section" id="env">
+      <h2><span class="num">04</span> Cấu hình biến môi trường</h2>
+      <p>Tạo file <code>.env.local</code> ở thư mục gốc với các biến sau:</p>
+
+      <h3>Database</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Biến</th><th>Mô tả</th><th>Ví dụ</th></tr></thead>
+          <tbody>
+            <tr><td><code>POSTGRES_URL</code></td><td>Connection string Neon Postgres</td><td><code>postgresql://user:pass@host/db</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>API AI</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Biến</th><th>Dịch vụ</th><th>Dùng cho</th></tr></thead>
+          <tbody>
+            <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Anthropic</td><td>Claude viết bài tiếng Việt</td></tr>
+            <tr><td><code>OPENAI_API_KEY</code></td><td>OpenAI</td><td>DALL-E tạo ảnh, TTS giọng đọc, GPT spin nội dung</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Cào tin tức</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Biến</th><th>Dịch vụ</th><th>Dùng cho</th></tr></thead>
+          <tbody>
+            <tr><td><code>RAPID_API_KEY</code></td><td>RapidAPI</td><td>Cào X/Twitter và Instagram</td></tr>
+            <tr><td><code>BRAVE_API_KEY</code></td><td>Brave Search</td><td>Dự phòng khi RapidAPI lỗi</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Facebook</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Biến</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code>FACEBOOK_PAGE_ID</code></td><td>ID của Facebook Page (tìm trong Page Settings)</td></tr>
+            <tr><td><code>FACEBOOK_ACCESS_TOKEN</code></td><td>Page Access Token (long-lived, có quyền <code>pages_manage_posts</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout-warn callout">
+        <span class="callout-label">Lưu ý</span>
+        Không commit file <code>.env.local</code> lên git. File này đã được thêm vào <code>.gitignore</code>.
+      </div>
+    </section>
+
+    <section class="section" id="run">
+      <h2><span class="num">05</span> Chạy ứng dụng</h2>
+
+      <h3>Development (phát triển)</h3>
+<pre><code><span class="cmd">npm run dev</span></code></pre>
+      <p>Mở trình duyệt tại <code>http://localhost:3000</code>. Hệ thống sẽ tự động tạo bảng database lần đầu tiên.</p>
+
+      <h3>Production (triển khai)</h3>
+<pre><code><span class="cmd">npm run build</span>
+<span class="cmd">npm start</span></code></pre>
+
+      <h3>Các lệnh npm khác</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Lệnh</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><code>npm run lint</code></td><td>Kiểm tra code style</td></tr>
+            <tr><td><code>cd bot && npm run post</code></td><td>Chạy bot đăng nhóm</td></tr>
+            <tr><td><code>cd bot && npm run check-db</code></td><td>Xem 5 bài viết gần nhất trong DB</td></tr>
+            <tr><td><code>cd bot && npm run fix-db</code></td><td>Sửa bài viết bị kẹt trạng thái</td></tr>
+            <tr><td><code>cd bot && npm run flush</code></td><td>Xóa toàn bộ dữ liệu</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="step1">
+      <h2><span class="num">06</span> Bước 1 — Thu thập tin</h2>
+      <p>Đây là bước đầu tiên trong pipeline. Hệ thống sẽ cào tin tức từ nhiều nguồn và lưu vào database.</p>
+
+      <h3>Chọn nguồn cào</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nguồn</th><th>Mô tả</th><th>Cách hoạt động</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Tất cả</strong></td><td>Cào từ mọi nguồn</td><td>RSS + X + Instagram</td></tr>
+            <tr><td><strong>Báo Công nghệ</strong></td><td>Chỉ RSS feeds</td><td>TechCrunch, a16z, NFX, Indie Hackers, Crunchbase, TechStartups</td></tr>
+            <tr><td><strong>X (Twitter)</strong></td><td>Chỉ tweet</td><td>Tìm tweet về AI có &ge;200 likes (qua RapidAPI)</td></tr>
+            <tr><td><strong>Instagram</strong></td><td>Chỉ Instagram</td><td>Tìm bài từ hashtag AI (qua RapidAPI)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Cách sử dụng</h3>
+      <ol>
+        <li>Chọn nguồn cào mong muốn (mặc định: <strong>Tất cả</strong>)</li>
+        <li>Nhấn nút <strong>Bắt đầu quét tin</strong></li>
+        <li>Đợi hệ thống cào xong (thường 10–30 giây tùy nguồn)</li>
+        <li>Tự động chuyển sang Bước 2</li>
+      </ol>
+
+      <div class="callout">
+        <span class="callout-label">Ghi chú</span>
+        Hệ thống chỉ lấy tin trong vòng 48 giờ gần nhất và lọc theo từ khóa liên quan đến AI. Các bài trùng URL sẽ tự động bỏ qua.
+      </div>
+    </section>
+
+    <section class="section" id="step2">
+      <h2><span class="num">07</span> Bước 2 — Chọn &amp; Định dạng</h2>
+      <p>Ở bước này, bạn chọn các bài tin muốn viết lại và chọn định dạng cho từng bài.</p>
+
+      <h3>Hai định dạng bài viết</h3>
+
+      <h4>POV — Góc nhìn cá nhân</h4>
+      <p>Claude sẽ viết bài dạng phân tích cá nhân sắc bén, mở đầu bằng câu hook gây tò mò, phân tích sâu với góc nhìn độc đáo. Phù hợp cho bài muốn tạo tương tác cao.</p>
+
+      <h4>Info — Tin tức dữ liệu</h4>
+      <p>Claude sẽ viết bài dạng tóm tắt tin tức dựa trên số liệu, đi thẳng vào vấn đề với các con số cụ thể. Phù hợp cho bài mang tính thông tin.</p>
+
+      <h3>Cách sử dụng</h3>
+      <ol>
+        <li>Tick chọn các bài tin muốn viết (checkbox bên trái)</li>
+        <li>Với mỗi bài, chọn định dạng <strong>POV</strong> hoặc <strong>Info</strong></li>
+        <li>Nhấn nút <strong>AI viết bài &amp; tạo ảnh</strong></li>
+        <li>Đợi AI xử lý (mỗi bài khoảng 15–30 giây bao gồm viết nội dung + tạo ảnh DALL-E)</li>
+        <li>Tự động chuyển sang Bước 3</li>
+      </ol>
+
+      <div class="callout">
+        <span class="callout-label">Ghi chú</span>
+        Mỗi bài viết sẽ tự động kèm hashtag <code>#AI #agent</code> cùng 2 hashtag do AI tự tạo. Ảnh minh họa được tạo bởi DALL-E 3 theo phong cách cinematic/Ghibli.
+      </div>
+    </section>
+
+    <section class="section" id="step3">
+      <h2><span class="num">08</span> Bước 3 — Duyệt &amp; Đăng bài</h2>
+      <p>Bước cuối cùng — duyệt lại nội dung, chỉnh sửa nếu cần, và chọn cách đăng.</p>
+
+      <h3>Cài đặt lịch đăng</h3>
+      <ul>
+        <li><strong>Bắt đầu từ</strong> — thời điểm đăng bài đầu tiên (mặc định: 1 giờ tới, làm tròn phút)</li>
+        <li><strong>Cách nhau</strong> — khoảng cách giữa các bài (mặc định: 3 giờ)</li>
+      </ul>
+
+      <div class="callout-warn callout">
+        <span class="callout-label">Quy định Facebook</span>
+        Thời gian hẹn đăng phải cách hiện tại ít nhất <strong>11 phút</strong>. Hệ thống sẽ tự động kiểm tra và cảnh báo nếu vi phạm.
+      </div>
+
+      <h3>Chỉnh sửa bài viết</h3>
+      <ul>
+        <li><strong>Nội dung</strong> — sửa trực tiếp trong ô textarea</li>
+        <li><strong>Hashtags</strong> — sửa trong ô input bên dưới</li>
+        <li><strong>Chọn ảnh</strong> — chọn giữa ảnh gốc (từ bài báo) hoặc ảnh AI tạo</li>
+      </ul>
+
+      <h3>Các nút đăng bài</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nút</th><th>Hành động</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Trang</strong></td><td>Đăng/hẹn lịch lên Facebook Page</td><td>Sử dụng Graph API, hỗ trợ hẹn giờ</td></tr>
+            <tr><td><strong>Nhóm</strong></td><td>Đánh dấu để bot đăng vào các nhóm</td><td>Cần chạy bot riêng (xem mục Bot)</td></tr>
+            <tr><td><strong>Tất cả</strong></td><td>Đăng Page + đánh dấu cho nhóm</td><td>Kết hợp cả hai</td></tr>
+            <tr><td><strong>Reels</strong></td><td>Tạo video Reels và đăng lên Page</td><td>Cần chạy bot (video mất 2–5 phút/bài)</td></tr>
+            <tr><td style="color:var(--danger)"><strong>Xoá</strong></td><td>Xoá vĩnh viễn bài đã chọn</td><td>Có hộp thoại xác nhận</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Vòng đời trạng thái bài viết</h3>
+      <div class="flow">
+        <span class="flow-node">draft</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">posted</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">ready_for_groups</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">groups_posted</span>
+      </div>
+
+      <h3>Lịch sử đăng bài</h3>
+      <p>Phần <strong>Lịch sử</strong> phía dưới hiển thị các bài đã đăng/đang xử lý với trạng thái tương ứng:</p>
+      <ul>
+        <li>⏳ <strong>Chờ gửi nhóm</strong> — đang đợi bot đăng vào groups</li>
+        <li>✅ <strong>Đã đăng nhóm</strong> — bot đã đăng xong</li>
+        <li>✓ <strong>Đã đăng trang</strong> — đã đăng lên Page</li>
+        <li>🎬 <strong>Đang tạo video</strong> — bot đang render video</li>
+        <li>✅ <strong>Đã tải video</strong> — video đã upload lên Reels</li>
+      </ul>
+    </section>
+
+    <section class="section" id="bot">
+      <h2><span class="num">09</span> Bot đăng nhóm Facebook</h2>
+      <p>Bot là tiến trình chạy nền, tự động kiểm tra database mỗi 60 giây để xử lý các bài cần đăng nhóm hoặc tạo video.</p>
+
+      <h3>Chuẩn bị cookies</h3>
+      <p>Bot sử dụng Playwright (trình duyệt tự động) với cookies Facebook đã lưu:</p>
+      <ol>
+        <li>Cài extension <strong>Cookie-Editor</strong> trên Chrome</li>
+        <li>Đăng nhập Facebook trên trình duyệt</li>
+        <li>Mở Cookie-Editor, nhấn <strong>Export</strong> (định dạng JSON)</li>
+        <li>Lưu nội dung vào file <code>bot/cookies.json</code></li>
+      </ol>
+
+      <div class="callout-danger callout">
+        <span class="callout-label">Bảo mật</span>
+        File <code>cookies.json</code> chứa phiên đăng nhập Facebook. Không chia sẻ hoặc commit file này. Cookies có thể hết hạn sau vài tuần — cần export lại khi bot không đăng được.
+      </div>
+
+      <h3>Cấu hình nhóm</h3>
+      <p>Danh sách nhóm Facebook được cấu hình tại <code>bot/lib/config.js</code>:</p>
+<pre><code>GROUPS: [
+  'comailo',
+  'groupaivietnam',
+  'openclawxvn',
+  '861108920047086',
+]</code></pre>
+      <p>Thêm hoặc bớt slug/ID nhóm trong mảng này. <code>PAGE_NAME</code> là tên Facebook Page sẽ đăng bài dưới danh tính Page (không phải tài khoản cá nhân).</p>
+
+      <h3>Chạy bot</h3>
+<pre><code><span class="cmd">cd bot</span>
+<span class="cmd">node post-groups.js</span></code></pre>
+      <p>Bot sẽ:</p>
+      <ol>
+        <li>Tìm bài có trạng thái <code>ready_for_groups</code></li>
+        <li>Dùng GPT spin lại nội dung ~30% (tránh Facebook đánh trùng)</li>
+        <li>Mở Chromium, đăng bài vào từng nhóm bằng Playwright</li>
+        <li>Chuyển trạng thái sang <code>groups_posted</code></li>
+        <li>Kiểm tra và xử lý video nếu có bài cần tạo Reels</li>
+        <li>Lặp lại mỗi 60 giây</li>
+      </ol>
+    </section>
+
+    <section class="section" id="video">
+      <h2><span class="num">10</span> Video Maker (Reels)</h2>
+      <p>Hệ thống tạo video Reels tự động từ nội dung bài viết, sử dụng Remotion để render và OpenAI TTS cho giọng đọc.</p>
+
+      <h3>Quy trình tạo video</h3>
+      <ol>
+        <li>GPT viết lại nội dung ngắn gọn hơn cho voiceover</li>
+        <li>GPT trích xuất dữ liệu/số liệu thành các scene</li>
+        <li>OpenAI TTS tạo file audio (giọng Nova)</li>
+        <li>Tính toán timing cho caption từ audio</li>
+        <li>Remotion render video 1080&times;1920 (dọc) ở 30fps</li>
+        <li>Upload lên Facebook Reels qua Graph API</li>
+      </ol>
+
+      <h3>Xem preview video</h3>
+<pre><code><span class="cmd">cd bot/video-maker</span>
+<span class="cmd">npm start</span></code></pre>
+      <p>Mở <code>http://localhost:3333</code> để xem Remotion Studio — preview và chỉnh sửa video trước khi render.</p>
+
+      <h3>Hai kiểu video</h3>
+      <ul>
+        <li><strong>MainVideo</strong> — Video đầy đủ với background, logo, animated stat blocks, captions, progress bar</li>
+        <li><strong>BlockVideo</strong> — Video đơn giản hơn với layout dạng block cards</li>
+      </ul>
+
+      <div class="callout">
+        <span class="callout-label">Ghi chú</span>
+        Video mất khoảng 2–5 phút để render (tùy độ dài). Concurrency mặc định là 2 để tránh tràn RAM. Có thể điều chỉnh trong <code>remotion.config.ts</code>.
+      </div>
+    </section>
+
+    <section class="section" id="db">
+      <h2><span class="num">11</span> Quản lý cơ sở dữ liệu</h2>
+
+      <h3>Khởi tạo tự động</h3>
+      <p>Database tự động tạo bảng và seed dữ liệu nguồn RSS khi API được gọi lần đầu. Không cần chạy migration thủ công.</p>
+
+      <h3>Cấu trúc bảng</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bảng</th><th>Mô tả</th><th>Số cột</th></tr></thead>
+          <tbody>
+            <tr><td><code>sources</code></td><td>Nguồn tin (RSS feeds, social accounts)</td><td>7</td></tr>
+            <tr><td><code>articles</code></td><td>Bài tin đã cào (tiêu đề, URL, tóm tắt, ảnh)</td><td>10</td></tr>
+            <tr><td><code>posts</code></td><td>Bài viết AI tạo (nội dung, ảnh, trạng thái đăng)</td><td>14</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Các lệnh quản lý</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Lệnh</th><th>Mô tả</th><th>Cảnh báo</th></tr></thead>
+          <tbody>
+            <tr><td><code>npm run check-db</code></td><td>Xem 5 bài viết gần nhất</td><td>An toàn, chỉ đọc</td></tr>
+            <tr><td><code>npm run fix-db</code></td><td>Reset bài viết bị kẹt trạng thái lỗi</td><td>Sửa <code>video_status='error'</code> thành <code>'completed'</code></td></tr>
+            <tr><td><code>npm run flush</code></td><td>Xóa toàn bộ articles, sources, posts</td><td style="color:var(--danger)"><strong>Không thể hoàn tác!</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout-danger callout">
+        <span class="callout-label">Cảnh báo</span>
+        Lệnh <code>flush</code> xóa toàn bộ dữ liệu không thể phục hồi. Chỉ sử dụng khi muốn reset hoàn toàn hệ thống.
+      </div>
+    </section>
+
+    <section class="section" id="troubleshoot">
+      <h2><span class="num">12</span> Xử lý lỗi thường gặp</h2>
+
+      <h4>Lỗi kết nối mạng khi cào dữ liệu</h4>
+      <p>Kiểm tra kết nối internet và đảm bảo <code>RAPID_API_KEY</code> / <code>BRAVE_API_KEY</code> còn hiệu lực. RapidAPI có giới hạn request/tháng theo gói đăng ký.</p>
+
+      <h4>Lỗi từ AI khi viết bài</h4>
+      <p>Kiểm tra <code>ANTHROPIC_API_KEY</code> còn credit. Nếu lỗi timeout, thử lại — Claude đôi khi mất 20–30 giây cho bài dài.</p>
+
+      <h4>Ảnh DALL-E không tạo được</h4>
+      <p>OpenAI có thể từ chối tạo ảnh nếu nội dung bị đánh giá nhạy cảm. Bài viết vẫn được lưu, chỉ thiếu ảnh AI — chọn ảnh gốc khi đăng.</p>
+
+      <h4>Bot không đăng được nhóm</h4>
+      <ul>
+        <li>Cookies hết hạn — export lại từ Cookie-Editor</li>
+        <li>Facebook đổi giao diện composer — cần cập nhật selector trong bot</li>
+        <li>Bị giới hạn đăng bài (rate limit) — đợi vài giờ</li>
+      </ul>
+
+      <h4>Video render lỗi/quá lâu</h4>
+      <ul>
+        <li>Thiếu <code>OPENAI_API_KEY</code> — cần cho TTS và trích xuất dữ liệu</li>
+        <li>RAM không đủ — giảm concurrency trong <code>remotion.config.ts</code></li>
+        <li>Bài viết kẹt trạng thái — chạy <code>npm run fix-db</code> trong thư mục bot</li>
+      </ul>
+
+      <h4>Thời gian hẹn đăng bị từ chối</h4>
+      <p>Facebook yêu cầu thời gian hẹn cách hiện tại ít nhất 11 phút. Chọn thời gian xa hơn trong phần Cài đặt lịch đăng.</p>
+
+      <h4>Database lỗi kết nối</h4>
+      <p>Kiểm tra <code>POSTGRES_URL</code> trong <code>.env.local</code>. Neon Postgres có thể tạm ngưng database sau thời gian không dùng — truy cập lại dashboard Neon để kích hoạt.</p>
+    </section>
+  </div>
+
+  <footer class="footer">
+    Marketing Automation — AI Content Pipeline &middot; Phiên bản 1.0
+  </footer>
+</div>
+</body>
+</html>

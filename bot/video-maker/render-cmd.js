@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env.local') });
 const fs = require('fs');
 const { execSync } = require('child_process');
 
@@ -117,18 +118,19 @@ CHỈ TRẢ VỀ JSON HỢP LỆ, KHÔNG GIẢI THÍCH THÊM. ĐỊNH DẠNG JSO
 Nội dung bài:
 ${rawContent}`;
 
-  // Thử OpenAI trước
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
+  const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
+  const llmKey = process.env.LLM_API_KEY;
+  const llmModel = process.env.LLM_MODEL || 'gpt-4o';
+  if (llmKey) {
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch(`${llmBaseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${openaiKey}`
+          Authorization: `Bearer ${llmKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: llmModel,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.4,
           response_format: { type: 'json_object' }
@@ -139,16 +141,20 @@ ${rawContent}`;
         const text = data.choices[0].message.content;
         const cleanedText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleanedText);
-        console.log('✅ Trích xuất stat data thành công (GPT-4o)!');
+        console.log(`✅ Trích xuất stat data thành công (${llmModel})!`);
         return normalizeStatData(parsed);
       }
     } catch(e) {
-      console.log('⚠️ Lỗi OpenAI extract, thử Gemini...', e.message);
+      console.log('⚠️ Lỗi LLM extract, thử Gemini...', e.message);
     }
   }
   
   // Fallback: Gemini
-  const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyDiFfpfPIzAOOuBiIzAIHULGjK1wNQH0YQ';
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) {
+    console.warn('Missing GEMINI_API_KEY for fallback');
+    return null;
+  }
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST',
@@ -284,11 +290,6 @@ async function renderVideo(text) {
   console.log(`🎬 Đang tiến hành Render Video Stat Hero + Caption bằng Remotion (Frame count: ${totalFrames})...`);
   
   fs.writeFileSync('props.json', JSON.stringify(props));
-
-  // Xóa video cũ nếu có
-  if (fs.existsSync('out/video.mp4')) {
-    fs.unlinkSync('out/video.mp4');
-  }
 
   // Xóa cache cũ TRIỆT ĐỂ để tránh stale bundle
   try { execSync('find /tmp -maxdepth 1 -name "remotion-*" -type d -exec rm -rf {} + 2>/dev/null || true', { stdio: 'ignore' }); } catch(e) {}

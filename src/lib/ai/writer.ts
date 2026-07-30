@@ -1,4 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
+import { FIXED_HASHTAGS } from '@/lib/constants';
 
 const SYSTEM_PROMPT = `Bạn là Phương — người làm Growth & Content, chuyên về AI tools, Affiliate Marketing và AEO/SEO. Viết bài đúng giọng văn bài mẫu của Phương: thực chiến, sắc sảo, có chiều sâu phân tích, không sáo rỗng.
 
@@ -15,7 +16,7 @@ KẾT BÀI PHÙ HỢP:
 
 const POV_PROMPT = `FORMAT: POV (Góc nhìn cá nhân & Phân tích chuyên sâu)
 
-Nhiệm vụ: Đọc kỹ bài source, tìm ra 1 LỖ HỔNG hoặc 1 ĐIỂM CHẾT mà ít ai thấy, biến nó thành GÓC NHÌN sắc bén của riêng Phương. 
+Nhiệm vụ: Đọc kỹ bài source, tìm ra 1 LỖ HỔNG hoặc 1 ĐIỂM CHẾT mà ít ai thấy, biến nó thành GÓC NHÌN sắc bén của riêng Phương.
 
 BỐ CỤC:
 1. HOOK: 1 câu STATEMENT mạnh bạo, VIẾT HOA (Ví dụ: "TRONG KHI NHIỀU NGƯỜI SỢ AI CƯỚP VIỆC, GEN Z ĐANG DÙNG NÓ ĐỂ THÀNH TỶ PHÚ.")
@@ -37,34 +38,40 @@ BỐ CỤC:
 
 Lưu ý: Bám cực sát số liệu từ SOURCE. NHƯNG không dịch khô khan, phải có PHÂN TÍCH SÂU ở bên dưới để độc giả thấy giá trị. Câu văn ngắn, nhịp điệu nhanh. Độ dài khoảng 700 - 800 ký tự (150-180 từ).`;
 
-export async function writeArticle(title: string, summary: string, format: string) {
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("No Anthropic API key");
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getLLMClient() {
+  const apiKey = process.env.LLM_API_KEY;
+  if (!apiKey) throw new Error("Missing LLM_API_KEY");
+  return new OpenAI({
+    apiKey,
+    baseURL: process.env.LLM_BASE_URL || 'https://api.openai.com/v1',
+  });
+}
 
+export async function writeArticle(title: string, summary: string, format: string) {
+  const client = getLLMClient();
+  const model = process.env.LLM_MODEL || 'gpt-4o';
   const formatPrompt = format === 'pov' ? POV_PROMPT : NEWS_PROMPT;
 
-  const msg = await anthropic.messages.create({
-    model: 'claude-opus-4-5',
+  const res = await client.chat.completions.create({
+    model,
     max_tokens: 1500,
     temperature: 0.85,
-    system: `${SYSTEM_PROMPT}\n\n${formatPrompt}`,
     messages: [
+      { role: 'system', content: `${SYSTEM_PROMPT}\n\n${formatPrompt}` },
       { role: 'user', content: `Viết bài Facebook post dựa trên tin tức sau:\n\nTiêu đề: ${title}\nNội dung: ${summary}\n\nSau bài viết, xuống dòng và thêm ĐÚNG 2 hashtags phù hợp với chủ đề (tiếng Việt không dấu hoặc tiếng Anh, viết liền, bắt đầu bằng #). Chỉ 2 hashtag thôi.` }
     ]
   });
 
-  const text = (msg.content[0] as any).text?.trim() || '';
+  const text = (res.choices[0]?.message?.content || '').trim();
   const hashtagIndex = text.lastIndexOf('#');
   const firstHashtagLine = text.lastIndexOf('\n', hashtagIndex);
   const content = text.substring(0, firstHashtagLine).trim();
   const autoHashtags = text.substring(firstHashtagLine).trim();
 
-  // Hashtag cố định luôn có mặt + 2 auto hashtag từ AI
-  const FIXED = '#AI #agent';
   const extra = autoHashtags.startsWith('#') ? autoHashtags : '#AITools #Growth';
 
   return {
     content: content || text,
-    hashtags: `${FIXED} ${extra}`
+    hashtags: `${FIXED_HASHTAGS} ${extra}`
   };
 }

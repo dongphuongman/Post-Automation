@@ -4,7 +4,7 @@
   "description": "Remotion Auto Video Maker",
   "scripts": {
     "start": "remotion studio src/index.ts",
-    "build": "remotion render src/index.ts MyVideo out/video.mp4"
+    "build": "remotion render src/index.ts MainVideo out/video.mp4"
   },
   "dependencies": {
     "remotion": "4.0.140",

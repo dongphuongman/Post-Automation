@@ -19,7 +19,8 @@ const IG_HASHTAGS = [
 ];
 
 export async function searchSocialMedia(platform: 'x' | 'instagram'): Promise<ScrapedArticle[]> {
-  const rapidApiKey = process.env.RAPID_API_KEY || "bf3904843emsh35b81dd984cad0dp101674jsnfec69e42f262";
+  const rapidApiKey = process.env.RAPID_API_KEY;
+  if (!rapidApiKey) throw new Error('Missing RAPID_API_KEY environment variable');
   const braveApiKey = process.env.BRAVE_API_KEY;
   const sourceName = platform === 'x' ? 'X (Twitter)' : 'Instagram';
 
@@ -233,9 +234,9 @@ export async function searchSocialMedia(platform: 'x' | 'instagram'): Promise<Sc
         });
       }
     }
-  } catch (error: any) {
-    console.warn(`[CẢNH BÁO] ${platform} API thất bại, chuyển sang Brave Search. Lỗi:`, error.message);
-    throw new Error(`[DEBUG] X API parsing error: ${error.message} - Stack: ${error.stack}`);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.warn(`[CẢNH BÁO] ${sourceName} API thất bại, chuyển sang Brave Search. Lỗi:`, msg);
   }
 
   // FALLBACK: Brave Search

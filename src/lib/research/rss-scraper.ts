@@ -47,14 +47,14 @@ export async function scrapeRSSFeed(feedUrl: string, sourceName: string): Promis
   try {
     const feed = await parser.parseURL(feedUrl);
     const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000); // 48h to be safe
+    const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
     const articles: ScrapedArticle[] = [];
 
     for (const item of feed.items || []) {
       const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
       
-      if (pubDate < oneDayAgo) continue;
+      if (pubDate < cutoff) continue;
 
       const title = item.title || '';
       const summary = item.contentSnippet || item.content || '';
@@ -78,7 +78,7 @@ export async function scrapeRSSFeed(feedUrl: string, sourceName: string): Promis
       if (!imageUrl && item.link) {
         try {
           const pageRes = await fetch(item.link, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIContentBot/1.0)' },
             signal: AbortSignal.timeout(5000),
           });
           if (pageRes.ok) {

@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { ok, fail } from '@/lib/api-response';
 
-export async function GET() {
+export async function POST() {
   try {
     await sql`DELETE FROM articles`;
     await sql`DELETE FROM sources`;
-    return NextResponse.json({ success: true, message: 'Database cleared' });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return ok({ message: 'Database cleared' });
+  } catch (error) {
+    return fail(String(error));
   }
 }

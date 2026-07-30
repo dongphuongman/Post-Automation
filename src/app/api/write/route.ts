@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { writeArticle } from '@/lib/ai/writer';
 import { generateImageResponse } from '@/lib/ai/image-generator';
+import { ok, fail } from '@/lib/api-response';
 
 export async function POST(req: Request) {
   try {
@@ -10,14 +10,17 @@ export async function POST(req: Request) {
     for (const { id: articleId, format } of selections) {
       const [article] = await sql`SELECT * FROM articles WHERE id = ${articleId}`;
       if (!article) continue;
-      
+
       const { content, hashtags } = await writeArticle(article.title, article.summary, format);
       const generatedImage = await generateImageResponse(article.title);
-      
-      const postId = "p_" + Math.random().toString(36).substring(7);
+
+      const postId = 'p_' + crypto.randomUUID().slice(0, 12);
       await sql`INSERT INTO posts (id, article_id, format, content, hashtags, original_image_url, generated_image_url) VALUES (${postId}, ${article.id}, ${format}, ${content}, ${hashtags}, ${article.original_image_url}, ${generatedImage})`;
       await sql`UPDATE articles SET status = 'written' WHERE id = ${article.id}`;
     }
-    return NextResponse.json({ success: true, count: selections.length });
-  } catch (error) { return NextResponse.json({ error: String(error) }, { status: 500 }); }
+
+    return ok({ count: selections.length });
+  } catch (error) {
+    return fail(String(error));
+  }
 }

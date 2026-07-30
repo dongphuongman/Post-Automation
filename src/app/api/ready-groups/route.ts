@@ -1,15 +1,14 @@
-import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { ok, fail } from '@/lib/api-response';
 
 export async function POST(req: Request) {
   try {
     const { postId } = await req.json();
-    
-    // Đánh dấu bài viết là ready_for_groups để cho Bot nhận diện
+    if (!postId) return fail('Missing postId', 400);
+
     await sql`UPDATE posts SET status = 'ready_for_groups' WHERE id = ${postId}`;
-    
-    return NextResponse.json({ success: true });
+    return ok();
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return fail(String(error));
   }
 }

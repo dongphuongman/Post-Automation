@@ -1,18 +1,16 @@
-import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { ok, fail } from '@/lib/api-response';
 
 export async function POST(req: Request) {
   try {
     const { ids } = await req.json();
-    
-    if (ids && ids.length > 0) {
-      for (const id of ids) {
-        await sql`DELETE FROM posts WHERE id = ${id}`;
-      }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return fail('ids must be a non-empty array', 400);
     }
-    
-    return NextResponse.json({ success: true });
-  } catch (error) { 
-    return NextResponse.json({ error: String(error) }, { status: 500 }); 
+
+    await sql`DELETE FROM posts WHERE id = ANY(${ids})`;
+    return ok();
+  } catch (error) {
+    return fail(String(error));
   }
 }

@@ -5,7 +5,10 @@
   "main": "post-groups.js",
   "scripts": {
     "post": "node post-groups.js",
-    "install-browser": "npx playwright install chromium"
+    "install-browser": "npx playwright install chromium",
+    "check-db": "node scripts/check-db.js",
+    "fix-db": "node scripts/fix-db.js",
+    "flush": "node scripts/flush.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

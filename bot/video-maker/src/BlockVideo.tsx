@@ -1,28 +1,14 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
+import { AbsoluteFill, Audio, staticFile, useCurrentFrame } from 'remotion';
+import { fadeSlideUp, useCaptionBlocks, CaptionOverlay } from './shared';
+import type { CaptionLine, VideoBlock } from './shared';
 
-// ===== ANIMATION HELPERS =====
-function fadeSlideUp(frame: number, startAt: number, duration = 15) {
-	const age = frame - startAt;
-	const opacity = interpolate(age, [0, duration], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-	const y = interpolate(age, [0, duration], [40, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-	return { opacity, transform: `translateY(${y}px)` };
-}
-
-// ===== COMPONENT =====
 export const BlockVideo: React.FC<{
 	audioUrl: string;
-	lines?: { text: string; startFrame: number }[];
+	lines?: CaptionLine[];
 	totalFrames?: number;
 	title?: string;
-	blocks?: {
-		type: string;
-		icon?: string;
-		title?: string;
-		subtitle?: string;
-		value?: string;
-		label?: string;
-	}[];
+	blocks?: VideoBlock[];
 }> = ({
 	audioUrl,
 	lines = [],
@@ -34,24 +20,7 @@ export const BlockVideo: React.FC<{
 	]
 }) => {
 	const frame = useCurrentFrame();
-	const { fps, durationInFrames } = useVideoConfig();
-
-	// ===== CAPTION LOGIC =====
-	const LINES_PER_BLOCK = 2; // Show fewer lines at the bottom for readability
-	const captionBlocks: { lines: typeof lines; startFrame: number }[] = [];
-	for (let i = 0; i < lines.length; i += LINES_PER_BLOCK) {
-		const blockLines = lines.slice(i, i + LINES_PER_BLOCK);
-		captionBlocks.push({ lines: blockLines, startFrame: blockLines[0]?.startFrame || 0 });
-	}
-
-	let currentBlockIndex = 0;
-	for (let i = captionBlocks.length - 1; i >= 0; i--) {
-		if (frame >= captionBlocks[i].startFrame) { currentBlockIndex = i; break; }
-	}
-	const currentCaption = captionBlocks[currentBlockIndex] || { lines: [], startFrame: 0 };
-	const blockAge = frame - currentCaption.startFrame;
-	const slideY = interpolate(blockAge, [0, 8], [20, 0], { extrapolateRight: 'clamp' });
-	const blockOpacity = interpolate(blockAge, [0, 6], [0, 1], { extrapolateRight: 'clamp' });
+	const caption = useCaptionBlocks(lines, frame);
 
 	// Blocks timing (staggered entrance)
 	const blockStartDelay = 30; // Wait 1s before showing blocks
@@ -128,34 +97,7 @@ export const BlockVideo: React.FC<{
 				})}
 			</div>
 
-			{/* ===== CAPTION (LOWER THIRD) ===== */}
-			<div style={{
-				position: 'absolute', bottom: 120, left: 40, right: 40,
-				textAlign: 'center', zIndex: 20,
-				opacity: blockOpacity,
-				transform: `translateY(${slideY}px)`,
-			}}>
-				<div style={{
-					display: 'inline-block',
-					padding: '20px 40px',
-				}}>
-					{currentCaption.lines.map((l, idx) => {
-						const isHighlight = idx === 0;
-						return (
-							<div key={idx} style={{
-								fontSize: isHighlight ? 60 : 48,
-								fontWeight: isHighlight ? 900 : 700,
-								color: isHighlight ? '#fff' : 'rgba(255,255,255,0.7)',
-								marginBottom: 10,
-								lineHeight: 1.2,
-								textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,1)', // Strong stroke/shadow
-							}}>
-								{l.text}
-							</div>
-						);
-					})}
-				</div>
-			</div>
+			<CaptionOverlay lines={caption.current.lines} slideY={caption.slideY} opacity={caption.opacity} />
 		</AbsoluteFill>
 	);
 };

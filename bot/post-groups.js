@@ -1,38 +1,31 @@
 /**
- * Facebook Group Poster — đăng AS Page "Đinh Phương"
+ * Facebook Group Poster — đăng AS Page
  * Chạy: node post-groups.js
- * Yêu cầu: cookies.json (từ account phụ), file .env có DATABASE_URL
+ * Yêu cầu: cookies.json (từ account phụ), file .env.local có DATABASE_URL
  */
 
 const { chromium } = require('playwright');
-const { neon } = require('@neondatabase/serverless');
-require('dotenv').config({ path: '../.env.local' });
 const fs = require('fs');
 const { execSync } = require('child_process');
+const { sql } = require('./lib/db');
+const { PAGE_NAME, GROUPS, FB_API_VERSION } = require('./lib/config');
 
-// ===== CẤU HÌNH =====
-const PAGE_NAME = 'Đinh Phương'; // Tên Page sẽ hiện trong dropdown "Đang đăng với tư cách"
-
-const GROUPS = [
-  'https://www.facebook.com/groups/comailo',
-  'https://www.facebook.com/groups/groupaivietnam/',
-  'https://www.facebook.com/groups/openclawxvn/',
-  'https://www.facebook.com/groups/861108920047086/',
-];
-// ====================
+const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
+const LLM_API_KEY = process.env.LLM_API_KEY;
+const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4o';
 
 async function spinContent(originalContent) {
-  if (!process.env.OPENAI_API_KEY) return originalContent;
+  if (!LLM_API_KEY) return originalContent;
   try {
     console.log('   🔄 Đang spin lại nội dung khoảng 30%...');
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        Authorization: `Bearer ${LLM_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: LLM_MODEL,
         messages: [{
           role: 'user',
           content: `Viết lại bài post Facebook sau đây. Giữ đúng ý nghĩa, định dạng, cách xuống dòng, độ dài và các hashtags. Chỉ viết lại khoảng 30% câu chữ (dùng từ đồng nghĩa, hoặc diễn đạt khác đi một chút) để bài viết mượt mà và không trùng lặp 100%. Trả về nguyên chuẩn văn bản bài post mới, KHÔNG THÊM CÂU CHÀO HAY MỞ ĐẦU.\n\nBài gốc:\n${originalContent}`
@@ -228,10 +221,7 @@ async function main() {
   let postId = null;
   let imagePathLocal = null;
 
-  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-
-  if (dbUrl) {
-    const sql = neon(dbUrl);
+  if (sql) {
     // Lấy timestamp hiện tại (giây) để so sánh với scheduled_time
     const currentEpoch = Math.floor(Date.now() / 1000);
 
@@ -258,7 +248,7 @@ async function main() {
     if (post.facebook_post_id && process.env.FACEBOOK_ACCESS_TOKEN) {
       console.log(`\n🔍 Đang kiểm tra trạng thái bài viết cực căng trên Page (FB_ID: ${post.facebook_post_id})...`);
       try {
-        const fbRes = await fetch(`https://graph.facebook.com/v21.0/${post.facebook_post_id}?fields=message,is_published&access_token=${process.env.FACEBOOK_ACCESS_TOKEN}`);
+        const fbRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/${post.facebook_post_id}?fields=message,is_published&access_token=${process.env.FACEBOOK_ACCESS_TOKEN}`);
         const fbData = await fbRes.json();
         
         if (fbData.is_published === false) {
@@ -366,8 +356,7 @@ async function main() {
   }
 
   // Cập nhật DB
-  if (postId && dbUrl && successCount > 0) {
-    const sql = neon(dbUrl);
+  if (postId && sql && successCount > 0) {
     await sql`UPDATE posts SET status = 'groups_posted' WHERE id = ${postId}`;
     console.log(`\n✅ Cập nhật DB: bài ${postId} → groups_posted\n`);
   }
@@ -383,7 +372,7 @@ async function uploadReelsGraphAPI(videoPath, description, scheduledTime) {
   if (!token || !pageId) throw new Error("Chưa có FACEBOOK_ACCESS_TOKEN hoặc PAGE_ID để up Reels");
 
   console.log("   👉 1. Khởi tạo phiên Upload Reels...");
-  const initRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/video_reels`, {
+  const initRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/${pageId}/video_reels`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ upload_phase: 'start', access_token: token })
@@ -421,7 +410,7 @@ async function uploadReelsGraphAPI(videoPath, description, scheduledTime) {
     finishPayload.scheduled_publish_time = Math.max(scheduledTime, minTime);
   }
 
-  const finishRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/video_reels`, {
+  const finishRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/${pageId}/video_reels`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(finishPayload)
@@ -442,20 +431,19 @@ async function uploadReelsGraphAPI(videoPath, description, scheduledTime) {
 
 // Hàm AI tự động Tóm tắt nội dung dài sang Kịch bản Video giật gân, Không xưng ngôi, Trân thuật khách quan
 async function rewriteForVideo(rawContent) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    console.log("⚠️ Thiếu OPENAI_API_KEY, chuyển sang dùng Gemini...");
+  if (!LLM_API_KEY) {
+    console.log("⚠️ Thiếu LLM_API_KEY, chuyển sang dùng Gemini...");
     return rewriteForVideoGemini(rawContent);
   }
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
+        Authorization: `Bearer ${LLM_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: LLM_MODEL,
         messages: [{
           role: 'user',
           content: `Dựa vào bài viết sau, hãy viết hoàn thiện thành một KỊCH BẢN VIDEO REELS cực kỳ chi tiết, độ dài khoảng từ 1000 đến 1200 ký tự. BẮT BUỘC: \n- Đọc dạng thông báo giật gân, ngôi kể trần thuật khách quan.\n- Tuyệt đối KHÔNG có đại từ xưng hô, KHÔNG xưng tên (kể cả tên Phương, tôi, mình, chúng tôi).\n- LƯU Ý PHÁT ÂM: Nếu viết về Trí tuệ nhân tạo, BẮT BUỘC phải viết là "A.I". Tuyệt đối không viết là "AI" để tránh máy đọc nhầm. Còn chữ "ai" (chỉ người) thì vẫn viết bình thường.\n- Đảm bảo kịch bản hoàn chỉnh từ đầu đến cuối, không bị cắt cụt giữa chừng.\n- Không gạch đầu dòng, không in đậm, viết thành một khối văn liên tục, mạch lạc, cuốn hút.\n- Chia nội dung thành 8-10 câu ngắn để dễ hiển thị caption.\n\nNội dung gốc:\n${rawContent}`
@@ -471,13 +459,14 @@ async function rewriteForVideo(rawContent) {
       throw new Error("Invalid response format");
     }
   } catch(e) {
-    console.log("⚠️ Lỗi OpenAI, dùng tạm Gemini...", e.message);
+    console.log("⚠️ Lỗi LLM, dùng tạm Gemini...", e.message);
     return rewriteForVideoGemini(rawContent);
   }
 }
 
 async function rewriteForVideoGemini(rawContent) {
-  const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyDiFfpfPIzAOOuBiIzAIHULGjK1wNQH0YQ';
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) { console.error('Missing GEMINI_API_KEY'); return rawContent.substring(0, 500); }
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -494,12 +483,9 @@ async function rewriteForVideoGemini(rawContent) {
 }
 
 async function checkAndProcessVideos() {
-  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) return false;
-  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-  const sql = neon(dbUrl);
+  if (!sql) return false;
   
-  const currentEpoch = Math.floor(Date.now() / 1000);
-  // Dùng ASC để xử lý tuần tự từ bài chọn trước tới bài chọn sau. Không cần chờ scheduled_time để Render Video nữa!
+  // Dùng ASC để xử lý tuần tự từ bài chọn trước tới bài chọn sau
   const posts = await sql`
     SELECT * FROM posts 
     WHERE create_video = true 
@@ -569,10 +555,8 @@ async function startBot() {
   
   // DỌN RÁC THÔNG MINH – Chỉ xoá bài ĐÃ QUÁ GIỜ HẸN mà vẫn chưa chạy
   // KHÔNG XOÁ bài có scheduled_time trong tương lai (đang chờ đúng giờ)
-  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-  if (dbUrl) {
+  if (sql) {
     try {
-      const sql = neon(dbUrl);
       console.log('🧹 Đang kiểm tra bài tồn đọng...');
       const currentEpoch = Math.floor(Date.now() / 1000);
       const expiredThreshold = currentEpoch - 2 * 60 * 60; // Quá giờ hẹn 2 tiếng mới dọn
