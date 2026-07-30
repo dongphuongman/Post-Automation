@@ -1,7 +1,7 @@
 {
   "name": "fb-group-poster-bot",
   "version": "1.0.0",
-  "description": "Playwright bot đăng bài lên Facebook Groups AS Page Đinh Phương",
+  "description": "Playwright bot đăng bài lên Facebook Groups AS Page",
   "main": "post-groups.js",
   "scripts": {
     "post": "node post-groups.js",
