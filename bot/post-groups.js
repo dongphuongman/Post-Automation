@@ -552,7 +552,7 @@ async function startBot() {
         RETURNING id
       `;
       
-      // Đếm bài đang chờ đúng giờ (để thông báo cho Penny biết)
+      // Đếm bài đang chờ đúng giờ
       const waiting = await sql`
         SELECT COUNT(*) as cnt FROM posts 
         WHERE (status = 'ready_for_groups' OR (create_video = true AND video_status = 'pending'))

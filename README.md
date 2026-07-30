@@ -18,7 +18,7 @@ Hệ thống 3 bước khép kín cho content creator và marketer:
 |-------|-----------|
 | Frontend | Next.js 16, React 18, TypeScript |
 | Database | Neon Postgres (serverless) |
-| AI / LLM | OpenAI-compatible API (OpenAI, Groq, Together, Ollama, ...) |
+| AI / LLM | Multi-provider: OpenAI, Anthropic Claude, Groq, Together, Ollama |
 | Image Gen | DALL-E 3 hoặc provider tương thích |
 | Video | Remotion + FFmpeg, OpenAI TTS |
 | Social | Facebook Graph API v21.0, Playwright automation |
@@ -34,16 +34,19 @@ npm install
 
 ### Cấu hình env
 
-Copy `.env.example` thành `.env` và điền các giá trị:
+Copy `.env.example` thành `.env.local` và điền các giá trị:
 
 ```env
 # Database
 POSTGRES_URL=postgresql://user:password@host/dbname
 
-# LLM — bất kỳ provider nào hỗ trợ OpenAI-compatible API
-LLM_BASE_URL=https://api.openai.com/v1
+# LLM Provider: "openai" (default) hoặc "anthropic"
+LLM_PROVIDER=openai
+
+# LLM config
+LLM_BASE_URL=https://api.openai.com/v1    # Không cần nếu dùng Anthropic
 LLM_API_KEY=sk-...
-LLM_MODEL=gpt-4o
+LLM_MODEL=gpt-4o                          # Hoặc claude-sonnet-4-20250514
 
 # Image (tùy chọn, mặc định dùng LLM_API_KEY)
 # IMAGE_BASE_URL=
@@ -52,6 +55,10 @@ LLM_MODEL=gpt-4o
 
 # TTS cho video (hiện chỉ hỗ trợ OpenAI)
 OPENAI_API_KEY=sk-...
+
+# Gemini fallback
+# GEMINI_API_KEY=
+# GEMINI_MODEL=gemini-2.0-flash
 
 # Scraping
 RAPID_API_KEY=
@@ -75,7 +82,7 @@ npm run build      # Production build
 ```bash
 cd bot/video-maker
 npm install
-# Xem bot/video-maker/README hoặc render-cmd.js để biết cách dùng
+# Xem render-cmd.js để biết cách dùng
 ```
 
 ## Cấu trúc dự án
@@ -89,8 +96,7 @@ src/
 │   │   ├── articles/     # CRUD bài viết
 │   │   ├── posts/        # Quản lý bài đăng
 │   │   ├── post-facebook/ # Đăng Facebook
-│   │   ├── stats/        # Thống kê
-│   │   └── ...
+│   │   └── stats/        # Thống kê
 │   ├── globals.css       # Design system + responsive
 │   └── page.tsx          # Trang chính (3-step pipeline)
 ├── components/
@@ -98,11 +104,12 @@ src/
 │   └── pipeline/         # StepResearch, StepSelect, StepReview
 ├── hooks/                # usePosts, custom hooks
 └── lib/
-    ├── ai/               # writer.ts, image-generator.ts
+    ├── ai/               # llm-client.ts, writer.ts, image-generator.ts
     ├── db/               # Neon Postgres queries
     └── constants.ts
 
 bot/
+├── lib/                  # llm-fetch.js, config.js, db.js
 ├── post-groups.js        # Bot đăng bài vào groups
 ├── video-maker/          # Remotion video rendering
 │   └── src/              # Video components (MainVideo, BlockVideo)
@@ -114,14 +121,34 @@ docs/
 
 ## LLM Provider
 
-Hệ thống dùng format OpenAI-compatible, cho phép chuyển đổi provider dễ dàng:
+Chuyển đổi provider bằng env var `LLM_PROVIDER`, không cần sửa code:
+
+### OpenAI-compatible (default)
+
+```env
+LLM_PROVIDER=openai
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=sk-...
+LLM_MODEL=gpt-4o
+```
+
+### Anthropic Claude
+
+```env
+LLM_PROVIDER=anthropic
+LLM_API_KEY=sk-ant-...
+LLM_MODEL=claude-sonnet-4-20250514
+```
+
+### Các provider OpenAI-compatible khác
 
 | Provider | `LLM_BASE_URL` | Model ví dụ |
 |----------|----------------|-------------|
-| OpenAI | `https://api.openai.com/v1` | `gpt-4o` |
 | Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
 | Together | `https://api.together.xyz/v1` | `meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo` |
 | Ollama | `http://localhost:11434/v1` | `llama3.1` |
+
+> Image generation và TTS vẫn dùng OpenAI riêng (qua `OPENAI_API_KEY`). Gemini dùng làm fallback khi LLM chính lỗi.
 
 ## Responsive
 

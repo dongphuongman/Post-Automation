@@ -7,6 +7,7 @@
     "build": "remotion render src/index.ts MainVideo out/video.mp4"
   },
   "dependencies": {
+    "dotenv": "^16.4.0",
     "remotion": "4.0.140",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
