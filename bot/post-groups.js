@@ -244,8 +244,10 @@ async function switchToPageIdentity(page, pageName = PAGE_NAME) {
   await confirmSwitchProfileModal(page);
 
   // Nếu composer đã sẵn → đang ở tư cách Trang rồi, bỏ qua.
+  // Ô soạn bài trên Page có thể mang nhãn "Bạn đang nghĩ gì" HOẶC "Chia sẻ suy nghĩ"
+  // (tùy giao diện Quản lý trang) hoặc "What's on your mind".
   try {
-    await page.locator('[aria-label*="Bạn đang nghĩ gì"], [aria-label*="What\'s on your mind"]')
+    await page.locator('[aria-label*="Bạn đang nghĩ gì"], [aria-label*="Chia sẻ suy nghĩ"], [aria-label*="What\'s on your mind"]')
       .first().waitFor({ timeout: 4000 });
     console.log('   ✅ Đang ở tư cách Trang (composer sẵn sàng).');
     return true;
@@ -293,13 +295,16 @@ async function postToPage(page, content, imagePath, pageName = PAGE_NAME, pageUr
   // Mở composer của Page
   const composerSelectors = [
     '[aria-label*="Bạn đang nghĩ gì"]',
+    '[aria-label*="Chia sẻ suy nghĩ"]',
     '[aria-label*="What\'s on your mind"]',
     '[aria-label*="Tạo bài viết"]',
     '[aria-label*="Create a post"]',
     'div[role="button"]:has-text("Bạn đang nghĩ gì")',
+    'div[role="button"]:has-text("Chia sẻ suy nghĩ")',
     'div[role="button"]:has-text("What\'s on your mind")',
     'div[role="button"]:has-text("Viết bài")',
     'span:has-text("Bạn đang nghĩ gì")',
+    'span:has-text("Chia sẻ suy nghĩ")',
     'span:has-text("What\'s on your mind")',
   ];
 
