@@ -52,7 +52,19 @@ async function llmChatCompletion({ messages, temperature = 0.7, maxTokens = 2048
     },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+
+  // Một số proxy trả JSON hoàn chỉnh NHƯNG kèm dòng thừa kiểu SSE ("data: [DONE]")
+  // ở cuối, khiến res.json() ném "non-whitespace after JSON". Đọc text rồi parse
+  // an toàn: thử nguyên chuỗi, nếu hỏng thì bóc dòng bắt đầu bằng '{' (object JSON).
+  const raw = await res.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    const line = raw.split('\n').find((l) => l.trim().startsWith('{'));
+    if (!line) throw new Error('Không parse được phản hồi LLM: ' + raw.slice(0, 200));
+    data = JSON.parse(line);
+  }
   if (data.error) throw new Error(data.error.message);
   return data.choices[0].message.content;
 }
