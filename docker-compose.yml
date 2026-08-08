@@ -1,0 +1,38 @@
+# Docker Compose cho Coolify — WEB APP (Next.js).
+# Bot (bot/) KHÔNG nằm ở đây vì cần đăng nhập Facebook thủ công + trình duyệt có màn hình;
+# xem docs/DEPLOY-COOLIFY.md phần "Bot".
+#
+# Trên Coolify: điền các biến môi trường trong UI (tab Environment Variables),
+# Coolify sẽ tự nạp vào ${...} bên dưới. DB dùng Neon Postgres bên ngoài (không cần container DB).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # --- Bắt buộc ---
+      POSTGRES_URL: ${POSTGRES_URL}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      # --- LLM (viết bài) — có thể để trống ở đây và cấu hình trong /manage/settings ---
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      # --- Tùy chọn ---
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      RAPID_API_KEY: ${RAPID_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      FACEBOOK_PAGE_ID: ${FACEBOOK_PAGE_ID:-}
+      FACEBOOK_ACCESS_TOKEN: ${FACEBOOK_ACCESS_TOKEN:-}
+      FACEBOOK_USER_TOKEN: ${FACEBOOK_USER_TOKEN:-}
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

@@ -1,0 +1,9 @@
+# Không đưa vào build context của bot image
+node_modules
+fb-profile*         # profile đăng nhập (& bản copy fb-profile-docker) — mount qua volume, không bake vào image
+screenshots
+cookies.json        # nếu có — nhạy cảm, nạp qua volume/env thay vì image
+video-maker/out
+video-maker/node_modules
+*.log
+.DS_Store
