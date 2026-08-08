@@ -1,27 +1,75 @@
 import { sql, initDb } from '@/lib/db';
 import { ok, fail } from '@/lib/api-response';
+import { getSession } from '@/lib/auth';
 
 // Dashboard theo dõi hàng đợi bot: đếm bài theo trạng thái + bài gần đây kèm đích.
-export async function GET() {
+// Phân quyền: admin thấy tất cả; user thường chỉ thấy dữ liệu của chính mình.
+export async function GET(req: Request) {
   try {
     await initDb();
+    const s = getSession(req);
+    if (!s) return fail('Chưa đăng nhập', 401);
+    const isAdmin = s.role === 'admin';
+    const uid = s.uid;
 
-    const statusRows = await sql`SELECT status, count(*)::int AS c FROM posts GROUP BY status`;
-    const videoRows = await sql`SELECT video_status, count(*)::int AS c FROM posts WHERE video_status <> 'none' GROUP BY video_status`;
+    const statusRows = isAdmin
+      ? await sql`SELECT status, count(*)::int AS c FROM posts GROUP BY status`
+      : await sql`SELECT status, count(*)::int AS c FROM posts WHERE owner_id = ${uid} GROUP BY status`;
 
-    const [pg] = await sql`SELECT count(*)::int AS c FROM facebook_pages WHERE active = 1`;
-    const [gr] = await sql`SELECT count(*)::int AS c FROM facebook_groups WHERE active = 1`;
-    const [srcAll] = await sql`SELECT count(*)::int AS c FROM sources WHERE active = 1`;
+    const videoRows = isAdmin
+      ? await sql`SELECT video_status, count(*)::int AS c FROM posts WHERE video_status <> 'none' GROUP BY video_status`
+      : await sql`SELECT video_status, count(*)::int AS c FROM posts WHERE video_status <> 'none' AND owner_id = ${uid} GROUP BY video_status`;
 
-    const recent = await sql`
-      SELECT p.id, p.status, p.video_status, p.target_page_id, p.target_group_ids, p.scheduled_time, p.created_at,
-             a.title AS article_title,
-             fp.name AS page_name
-      FROM posts p
-      LEFT JOIN articles a ON p.article_id = a.id
-      LEFT JOIN facebook_pages fp ON p.target_page_id = fp.id
-      ORDER BY p.created_at DESC LIMIT 15
-    `;
+    const [pg] = isAdmin
+      ? await sql`SELECT count(*)::int AS c FROM facebook_pages WHERE active = 1`
+      : await sql`SELECT count(*)::int AS c FROM facebook_pages WHERE active = 1 AND owner_id = ${uid}`;
+    const [gr] = isAdmin
+      ? await sql`SELECT count(*)::int AS c FROM facebook_groups WHERE active = 1`
+      : await sql`SELECT count(*)::int AS c FROM facebook_groups WHERE active = 1 AND owner_id = ${uid}`;
+    const [srcAll] = isAdmin
+      ? await sql`SELECT count(*)::int AS c FROM sources WHERE active = 1`
+      : await sql`SELECT count(*)::int AS c FROM sources WHERE active = 1 AND owner_id = ${uid}`;
+
+    // Bài "đã đăng" = status posted/groups_posted; "chưa đăng" = còn lại. Mỗi mục lấy 10 bài gần nhất riêng.
+    const recentPosted = isAdmin
+      ? await sql`
+          SELECT p.id, p.status, p.video_status, p.target_page_id, p.target_group_ids, p.scheduled_time, p.created_at,
+                 a.title AS article_title, fp.name AS page_name
+          FROM posts p
+          LEFT JOIN articles a ON p.article_id = a.id
+          LEFT JOIN facebook_pages fp ON p.target_page_id = fp.id
+          WHERE p.status IN ('posted', 'groups_posted')
+          ORDER BY p.created_at DESC LIMIT 10
+        `
+      : await sql`
+          SELECT p.id, p.status, p.video_status, p.target_page_id, p.target_group_ids, p.scheduled_time, p.created_at,
+                 a.title AS article_title, fp.name AS page_name
+          FROM posts p
+          LEFT JOIN articles a ON p.article_id = a.id
+          LEFT JOIN facebook_pages fp ON p.target_page_id = fp.id
+          WHERE p.status IN ('posted', 'groups_posted') AND p.owner_id = ${uid}
+          ORDER BY p.created_at DESC LIMIT 10
+        `;
+
+    const recentPending = isAdmin
+      ? await sql`
+          SELECT p.id, p.status, p.video_status, p.target_page_id, p.target_group_ids, p.scheduled_time, p.created_at,
+                 a.title AS article_title, fp.name AS page_name
+          FROM posts p
+          LEFT JOIN articles a ON p.article_id = a.id
+          LEFT JOIN facebook_pages fp ON p.target_page_id = fp.id
+          WHERE p.status NOT IN ('posted', 'groups_posted')
+          ORDER BY p.created_at DESC LIMIT 10
+        `
+      : await sql`
+          SELECT p.id, p.status, p.video_status, p.target_page_id, p.target_group_ids, p.scheduled_time, p.created_at,
+                 a.title AS article_title, fp.name AS page_name
+          FROM posts p
+          LEFT JOIN articles a ON p.article_id = a.id
+          LEFT JOIN facebook_pages fp ON p.target_page_id = fp.id
+          WHERE p.status NOT IN ('posted', 'groups_posted') AND p.owner_id = ${uid}
+          ORDER BY p.created_at DESC LIMIT 10
+        `;
 
     const statusCounts: Record<string, number> = {};
     for (const r of statusRows as any[]) statusCounts[r.status] = r.c;
@@ -32,7 +80,8 @@ export async function GET() {
       statusCounts,
       videoCounts,
       totals: { pages: pg.c, groups: gr.c, sources: srcAll.c },
-      recent,
+      recentPosted,
+      recentPending,
     });
   } catch (error) {
     return fail(String(error));

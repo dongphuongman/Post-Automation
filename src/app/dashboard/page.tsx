@@ -2,16 +2,19 @@
 
 import { useEffect, useState, useCallback } from 'react';
 
+interface RecentPost {
+  id: string; status: string; video_status: string;
+  target_page_id: string | null; target_group_ids: string | null;
+  scheduled_time: number | null; created_at: string;
+  article_title: string | null; page_name: string | null;
+}
+
 interface DashboardData {
   statusCounts: Record<string, number>;
   videoCounts: Record<string, number>;
   totals: { pages: number; groups: number; sources: number };
-  recent: {
-    id: string; status: string; video_status: string;
-    target_page_id: string | null; target_group_ids: string | null;
-    scheduled_time: number | null; created_at: string;
-    article_title: string | null; page_name: string | null;
-  }[];
+  recentPosted: RecentPost[];
+  recentPending: RecentPost[];
 }
 
 // Nhãn tiếng Việt + màu cho từng trạng thái hàng đợi.
@@ -45,6 +48,27 @@ export default function DashboardPage() {
   useEffect(() => { load(); }, [load]);
 
   const orderedStatuses = ['ready_for_page', 'ready_for_groups', 'page_posting', 'groups_posting', 'posted', 'groups_posted', 'draft'];
+
+  const renderPost = (p: RecentPost) => {
+    let groupCount = 0;
+    try { groupCount = p.target_group_ids ? JSON.parse(p.target_group_ids).length : 0; } catch {}
+    return (
+      <div key={p.id} className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 600 }}>{p.article_title || p.id}</div>
+            <div className="form-hint">
+              {p.page_name ? `→ ${p.page_name}` : ''}{groupCount ? ` · ${groupCount} nhóm` : ''}
+              {p.scheduled_time ? ` · hẹn ${new Date(p.scheduled_time * 1000).toLocaleString('vi-VN')}` : ''}
+            </div>
+          </div>
+          <span className="badge" style={{ background: statusColor(p.status) + '22', color: statusColor(p.status), flexShrink: 0 }}>
+            {statusLabel(p.status)}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="manage-page">
@@ -86,32 +110,21 @@ export default function DashboardPage() {
           </div>
 
           <div className="section-header">
-            <span className="section-title">Bài gần đây</span>
-            <span className="section-count">{data.recent.length}</span>
+            <span className="section-title">🕓 Chưa đăng</span>
+            <span className="section-count">{data.recentPending.length}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.recentPending.map(renderPost)}
+            {data.recentPending.length === 0 && <div className="empty-state"><div className="empty-icon">📭</div>Không có bài chờ đăng.</div>}
           </div>
 
+          <div className="section-header" style={{ marginTop: 24 }}>
+            <span className="section-title">✅ Đã đăng</span>
+            <span className="section-count">{data.recentPosted.length}</span>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {data.recent.map(p => {
-              let groupCount = 0;
-              try { groupCount = p.target_group_ids ? JSON.parse(p.target_group_ids).length : 0; } catch {}
-              return (
-                <div key={p.id} className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600 }}>{p.article_title || p.id}</div>
-                      <div className="form-hint">
-                        {p.page_name ? `→ ${p.page_name}` : ''}{groupCount ? ` · ${groupCount} nhóm` : ''}
-                        {p.scheduled_time ? ` · hẹn ${new Date(p.scheduled_time * 1000).toLocaleString('vi-VN')}` : ''}
-                      </div>
-                    </div>
-                    <span className="badge" style={{ background: statusColor(p.status) + '22', color: statusColor(p.status), flexShrink: 0 }}>
-                      {statusLabel(p.status)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-            {data.recent.length === 0 && <div className="empty-state"><div className="empty-icon">📭</div>Chưa có bài nào.</div>}
+            {data.recentPosted.map(renderPost)}
+            {data.recentPosted.length === 0 && <div className="empty-state"><div className="empty-icon">📭</div>Chưa có bài nào được đăng.</div>}
           </div>
         </>
       )}
