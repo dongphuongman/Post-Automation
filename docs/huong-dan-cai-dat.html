@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hướng dẫn cài đặt &amp; chạy — Marketing Automation</title>
+<style>
+  :root {
+    --bg: #f8f9fc;
+    --surface: #ffffff;
+    --text: #1a1a2e;
+    --text-secondary: #555770;
+    --text-muted: #8b8da3;
+    --accent: #6366f1;
+    --accent-light: #eef0ff;
+    --accent-dark: #312e81;
+    --border: #e2e4ed;
+    --code-bg: #1e1b4b;
+    --code-text: #e0e7ff;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(26,26,46,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0e1a;
+      --surface: #1a1930;
+      --text: #e0e2f0;
+      --text-secondary: #a0a3bd;
+      --text-muted: #6b6e8a;
+      --accent: #818cf8;
+      --accent-light: #1e1b4b;
+      --accent-dark: #c7d2fe;
+      --border: #2a2946;
+      --code-bg: #0d0b1a;
+      --code-text: #c7d2fe;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 1fr min(720px, 100%) 1fr;
+    min-height: 100vh;
+  }
+
+  .page > * { grid-column: 2; }
+
+  .hero {
+    grid-column: 1 / -1;
+    background: linear-gradient(195deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+    padding: 64px 24px 56px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.25) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(67,56,202,0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(199,210,254,0.7);
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .hero h1 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    text-wrap: balance;
+    position: relative;
+  }
+
+  .hero p {
+    font-size: 16px;
+    color: rgba(224,231,255,0.7);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+    position: relative;
+  }
+
+  .content {
+    padding: 0 24px 80px;
+  }
+
+  /* ---- TOC ---- */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: -28px 0 48px;
+    box-shadow: var(--shadow);
+    position: relative;
+    z-index: 1;
+  }
+
+  .toc-title {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 32px;
+  }
+
+  .toc li {
+    counter-increment: toc;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    color: var(--accent);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-right: 8px;
+    font-size: 12px;
+  }
+
+  .toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .toc a:hover { color: var(--accent); }
+
+  /* ---- Sections ---- */
+  .section {
+    margin-bottom: 56px;
+  }
+
+  h2 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--text);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    text-wrap: balance;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  h2 .num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-light);
+    border-radius: 6px;
+  }
+
+  h3 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 32px 0 12px;
+    letter-spacing: -0.2px;
+  }
+
+  h4 {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin: 24px 0 8px;
+  }
+
+  p { margin-bottom: 14px; }
+  p:last-child { margin-bottom: 0; }
+
+  ul, ol {
+    margin: 0 0 16px 24px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  strong {
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: rgba(99,102,241,0.3);
+    text-underline-offset: 2px;
+    transition: text-decoration-color 0.15s;
+  }
+
+  a:hover {
+    text-decoration-color: var(--accent);
+  }
+
+  /* ---- Code ---- */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.88em;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 500;
+    word-break: break-word;
+  }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    margin: 16px 0;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+    border-radius: 0;
+  }
+
+  .cmd::before {
+    content: '$ ';
+    color: #6366f1;
+    user-select: none;
+  }
+
+  /* ---- Tables ---- */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 16px 0;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  thead {
+    background: var(--accent-light);
+  }
+
+  th {
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--text);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  td code {
+    font-size: 12px;
+  }
+
+  .center { text-align: center; }
+
+  /* ---- Callouts ---- */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-light);
+    padding: 16px 20px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 20px 0;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .callout-warn {
+    border-left-color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  }
+
+  .callout-danger {
+    border-left-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  }
+
+  .callout-label {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .callout .callout-label { color: var(--accent); }
+  .callout-warn .callout-label { color: var(--warning); }
+  .callout-danger .callout-label { color: var(--danger); }
+
+  /* ---- Steps visual ---- */
+  .pipeline-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 24px 0;
+  }
+
+  .p-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    position: relative;
+  }
+
+  .p-step-num {
+    font-family: system-ui, -apple-system, sans-serif;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+  }
+
+  .p-step-title {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .p-step-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .p-step + .p-step::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border: 5px solid transparent;
+    border-left-color: var(--accent);
+  }
+
+  /* ---- Flow diagram ---- */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 14px 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+  }
+
+  .flow-node {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .flow-arrow {
+    color: var(--text-muted);
+    font-size: 16px;
+  }
+
+  /* ---- Footer ---- */
+  .footer {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 600px) {
+    .hero { padding: 48px 20px 44px; }
+    .content { padding: 0 16px 60px; }
+    .toc ol { grid-template-columns: 1fr; }
+    .pipeline-steps { grid-template-columns: 1fr; }
+    .p-step + .p-step::before { display: none; }
+    h2 { font-size: 20px; }
+    pre { padding: 16px; font-size: 12px; }
+    table { font-size: 13px; }
+    th, td { padding: 8px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Marketing Automation</div>
+    <h1>Hướng dẫn cài đặt &amp; chạy</h1>
+    <p>Cài đặt, cấu hình và chạy pipeline tự động hóa content: Thu thập tin → Viết bài bằng AI → Render video → Đăng Facebook.</p>
+  </div>
+
+  <div class="content">
+
+    <nav class="toc">
+      <div class="toc-title">Mục lục</div>
+      <ol>
+        <li><a href="#requirements">Yêu cầu hệ thống</a></li>
+        <li><a href="#install">Cài đặt web app</a></li>
+        <li><a href="#database">Khởi tạo Database</a></li>
+        <li><a href="#env">Biến môi trường</a></li>
+        <li><a href="#llm">Chọn nhà cung cấp LLM</a></li>
+        <li><a href="#bot">Bot đăng Facebook</a></li>
+        <li><a href="#video">Module render video</a></li>
+        <li><a href="#usage">Quy trình sử dụng</a></li>
+        <li><a href="#troubleshoot">Xử lý sự cố</a></li>
+        <li><a href="#refs">Tham khảo thêm</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1 -->
+    <section class="section" id="requirements">
+      <h2><span class="num">1</span> Yêu cầu hệ thống</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Thành phần</th><th>Yêu cầu</th><th>Ghi chú</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Node.js</strong></td><td>&gt;= 18 (khuyến nghị 20 LTS)</td><td>Next.js 16 yêu cầu Node 18.18+</td></tr>
+            <tr><td><strong>npm</strong></td><td>Đi kèm Node.js</td><td>Có thể dùng pnpm/yarn</td></tr>
+            <tr><td><strong>Git</strong></td><td>Bất kỳ</td><td>Để clone mã nguồn</td></tr>
+            <tr><td><strong>Neon Postgres</strong></td><td>Tài khoản miễn phí</td><td>Database serverless — <a href="https://neon.tech" target="_blank" rel="noopener">neon.tech</a></td></tr>
+            <tr><td><strong>FFmpeg</strong></td><td>Tùy chọn</td><td>Chỉ cần khi render video Reels</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Lưu ý</span>
+        Ứng dụng gồm <strong>3 phần độc lập</strong>: web app chính (<code>/</code>), bot đăng Facebook Groups (<code>bot/</code>) và module render video (<code>bot/video-maker/</code>). Bạn có thể chỉ cài phần web app để bắt đầu.
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="section" id="install">
+      <h2><span class="num">2</span> Cài đặt web app chính</h2>
+
+      <h3>2.1. Tải mã nguồn &amp; cài dependency</h3>
+      <pre><code>git clone https://github.com/dongphuongman/Post-Automation.git
+cd Post-Automation
+npm install</code></pre>
+
+      <h3>2.2. Tạo file cấu hình môi trường</h3>
+      <p>Sao chép file mẫu <code>.env.example</code> thành <code>.env.local</code>:</p>
+      <pre><code>cp .env.example .env.local</code></pre>
+      <p>Sau đó mở <code>.env.local</code> và điền các giá trị (xem chi tiết ở <a href="#env">Mục 4</a>).</p>
+
+      <h3>2.3. Chạy ứng dụng</h3>
+      <pre><code>npm run dev        # Chạy chế độ dev tại http://localhost:3000
+npm run build      # Build bản production
+npm run start      # Chạy bản production đã build
+npm run lint       # Kiểm tra lint</code></pre>
+      <p>Mở trình duyệt tại <strong>http://localhost:3000</strong> để bắt đầu.</p>
+    </section>
+
+    <!-- 3 -->
+    <section class="section" id="database">
+      <h2><span class="num">3</span> Khởi tạo Database</h2>
+      <div class="callout">
+        <span class="callout-label">Không cần migration thủ công</span>
+        Database tự khởi tạo khi ứng dụng gọi API <code>research</code> hoặc <code>stats</code> (ví dụ: lần đầu mở trang chính hoặc bấm "Thu thập tin").
+      </div>
+      <ul>
+        <li>Hàm <code>initDb()</code> tự động tạo 3 bảng: <code>sources</code>, <code>articles</code>, <code>posts</code>.</li>
+        <li>Hàm <code>seedDb()</code> tự động thêm sẵn 6 nguồn RSS mặc định (TechCrunch, NFX, Indie Hackers, a16z, Crunchbase News, TechStartups).</li>
+      </ul>
+      <p>Bạn chỉ cần đảm bảo biến <code>POSTGRES_URL</code> trong <code>.env.local</code> trỏ đúng tới database Neon còn hoạt động.</p>
+      <div class="callout">
+        <span class="callout-label">Lấy connection string</span>
+        Đăng nhập <a href="https://console.neon.tech" target="_blank" rel="noopener">Neon Console</a> → tạo project → copy chuỗi kết nối dạng <code>postgresql://user:password@host/dbname</code> vào biến <code>POSTGRES_URL</code>.
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="section" id="env">
+      <h2><span class="num">4</span> Cấu hình biến môi trường</h2>
+
+      <h3>4.1. Bắt buộc</h3>
+      <pre><code># Database — Neon Postgres (bắt buộc)
+POSTGRES_URL=postgresql://user:password@host/dbname
+
+# Nhà cung cấp LLM: "openai" (mặc định) hoặc "anthropic"
+LLM_PROVIDER=openai
+
+# Cấu hình LLM (bắt buộc để viết bài bằng AI)
+LLM_BASE_URL=https://api.openai.com/v1     # Bỏ trống nếu dùng Anthropic
+LLM_API_KEY=sk-...
+LLM_MODEL=gpt-4o</code></pre>
+
+      <h3>4.2. Tùy chọn</h3>
+      <pre><code># Sinh ảnh minh họa — mặc định dùng LLM_API_KEY nếu không set riêng
+# IMAGE_BASE_URL=https://api.openai.com/v1
+# IMAGE_API_KEY=sk-...
+# IMAGE_MODEL=dall-e-3
+
+# TTS lồng tiếng cho video Reels (hiện chỉ hỗ trợ OpenAI)
+OPENAI_API_KEY=sk-...
+
+# Gemini — dự phòng khi LLM chính lỗi
+# GEMINI_API_KEY=
+# GEMINI_MODEL=gemini-2.0-flash
+
+# Thu thập tin từ mạng xã hội (X/Twitter, Instagram)
+RAPID_API_KEY=
+BRAVE_API_KEY=
+
+# Đăng Facebook (Graph API v21.0)
+FACEBOOK_PAGE_ID=
+FACEBOOK_ACCESS_TOKEN=
+FACEBOOK_USER_TOKEN=</code></pre>
+
+      <h3>4.3. Bảng tra cứu các biến</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Biến</th><th class="center">Bắt buộc</th><th>Mô tả</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>POSTGRES_URL</code></td><td class="center">✅</td><td>Chuỗi kết nối Neon Postgres</td></tr>
+            <tr><td><code>LLM_PROVIDER</code></td><td class="center">✅</td><td><code>openai</code> (mặc định) hoặc <code>anthropic</code></td></tr>
+            <tr><td><code>LLM_API_KEY</code></td><td class="center">✅</td><td>API key của nhà cung cấp LLM</td></tr>
+            <tr><td><code>LLM_BASE_URL</code></td><td class="center">⚠️</td><td>Bắt buộc với OpenAI-compatible; <strong>không cần</strong> với Anthropic</td></tr>
+            <tr><td><code>LLM_MODEL</code></td><td class="center">⚠️</td><td>Model dùng để viết bài (vd <code>gpt-4o</code>)</td></tr>
+            <tr><td><code>OPENAI_API_KEY</code></td><td class="center">❌</td><td>Cần khi lồng tiếng TTS cho video</td></tr>
+            <tr><td><code>IMAGE_*</code></td><td class="center">❌</td><td>Cấu hình riêng cho sinh ảnh; mặc định dùng LLM</td></tr>
+            <tr><td><code>GEMINI_*</code></td><td class="center">❌</td><td>Fallback khi LLM chính lỗi</td></tr>
+            <tr><td><code>RAPID_API_KEY</code>, <code>BRAVE_API_KEY</code></td><td class="center">❌</td><td>Thu thập tin từ mạng xã hội &amp; tìm kiếm</td></tr>
+            <tr><td><code>FACEBOOK_*</code></td><td class="center">❌</td><td>Đăng bài lên Facebook Page/Group</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="section" id="llm">
+      <h2><span class="num">5</span> Chọn nhà cung cấp LLM</h2>
+      <p>Chuyển đổi provider chỉ bằng biến <code>LLM_PROVIDER</code>, <strong>không cần sửa code</strong>.</p>
+
+      <h3>OpenAI (mặc định)</h3>
+      <pre><code>LLM_PROVIDER=openai
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=sk-...
+LLM_MODEL=gpt-4o</code></pre>
+
+      <h3>Anthropic Claude</h3>
+      <pre><code>LLM_PROVIDER=anthropic
+LLM_API_KEY=sk-ant-...
+LLM_MODEL=claude-sonnet-4-20250514</code></pre>
+
+      <h3>Các provider OpenAI-compatible khác</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Provider</th><th><code>LLM_BASE_URL</code></th><th>Model ví dụ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Groq</td><td><code>https://api.groq.com/openai/v1</code></td><td><code>llama-3.3-70b-versatile</code></td></tr>
+            <tr><td>Together</td><td><code>https://api.together.xyz/v1</code></td><td><code>meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo</code></td></tr>
+            <tr><td>Ollama (local)</td><td><code>http://localhost:11434/v1</code></td><td><code>llama3.1</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Lưu ý</span>
+        Sinh ảnh (Image) và TTS vẫn dùng OpenAI riêng qua <code>OPENAI_API_KEY</code>, độc lập với LLM viết bài.
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="section" id="bot">
+      <h2><span class="num">6</span> Bot đăng Facebook Groups <span style="font-size:13px;color:var(--text-muted);font-weight:600;">(tùy chọn)</span></h2>
+      <p>Bot dùng Playwright để đăng bài vào Facebook Groups dưới danh nghĩa Page.</p>
+      <pre><code>cd bot
+npm install
+npm run install-browser      # Cài trình duyệt Chromium cho Playwright</code></pre>
+      <p>Bot dùng chung database với web app, nên cần biến <code>POSTGRES_URL</code> (đặt trong file <code>.env</code> của thư mục <code>bot/</code> hoặc biến môi trường hệ thống — bot nạp qua <code>dotenv</code>).</p>
+
+      <h4>Các lệnh có sẵn</h4>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Lệnh</th><th>Chức năng</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>npm run post</code></td><td>Chạy bot đăng bài (<code>node post-groups.js</code>)</td></tr>
+            <tr><td><code>npm run check-db</code></td><td>Kiểm tra 5 bài đăng gần nhất trong DB</td></tr>
+            <tr><td><code>npm run fix-db</code></td><td>Sửa/đồng bộ schema DB</td></tr>
+            <tr><td><code>npm run flush</code></td><td>Xóa dữ liệu (dùng thận trọng)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="section" id="video">
+      <h2><span class="num">7</span> Module render video <span style="font-size:13px;color:var(--text-muted);font-weight:600;">(tùy chọn)</span></h2>
+      <p>Module dùng <strong>Remotion</strong> để render video Reels tự động.</p>
+      <pre><code>cd bot/video-maker
+npm install</code></pre>
+
+      <h4>Lệnh có sẵn</h4>
+      <pre><code>npm run start         # Mở Remotion Studio để xem/chỉnh video
+npm run build         # Render video ra out/video.mp4</code></pre>
+      <p>Tham khảo file <code>bot/video-maker/render-cmd.js</code> để biết cách truyền tham số render.</p>
+      <div class="callout callout-warn">
+        <span class="callout-label">Yêu cầu</span>
+        Cần cài <strong>FFmpeg</strong> trên máy để render. Trên macOS: <code>brew install ffmpeg</code>.
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="section" id="usage">
+      <h2><span class="num">8</span> Quy trình sử dụng</h2>
+      <p>Sau khi chạy <code>npm run dev</code> và mở <strong>http://localhost:3000</strong>:</p>
+      <div class="pipeline-steps">
+        <div class="p-step">
+          <div class="p-step-num">1</div>
+          <div class="p-step-title">Thu thập tin</div>
+          <div class="p-step-desc">Crawl tin tức từ RSS / Brave Search / RapidAPI theo nguồn.</div>
+        </div>
+        <div class="p-step">
+          <div class="p-step-num">2</div>
+          <div class="p-step-title">Chọn &amp; Viết bài</div>
+          <div class="p-step-desc">AI viết bài theo giọng văn (POV / News), tự sinh ảnh minh họa.</div>
+        </div>
+        <div class="p-step">
+          <div class="p-step-num">3</div>
+          <div class="p-step-title">Duyệt &amp; Đăng</div>
+          <div class="p-step-desc">Đăng Facebook Page/Group (ngay hoặc hẹn lịch), kèm video Reels.</div>
+        </div>
+      </div>
+      <div class="flow">
+        <span class="flow-node">Thu thập</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-node">Viết bài AI</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-node">Render video</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-node">Đăng Facebook</span>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="section" id="troubleshoot">
+      <h2><span class="num">9</span> Xử lý sự cố thường gặp</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Triệu chứng</th><th>Nguyên nhân &amp; cách xử lý</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Cảnh báo <code>POSTGRES_URL is not defined</code></td><td>Chưa cấu hình <code>POSTGRES_URL</code> trong <code>.env.local</code>. Thêm chuỗi kết nối Neon.</td></tr>
+            <tr><td>Không viết được bài / lỗi LLM</td><td>Kiểm tra <code>LLM_API_KEY</code>, <code>LLM_MODEL</code> và <code>LLM_BASE_URL</code> (với OpenAI-compatible).</td></tr>
+            <tr><td>Không thu thập được tin mạng xã hội</td><td>Cần điền <code>RAPID_API_KEY</code> và/hoặc <code>BRAVE_API_KEY</code>.</td></tr>
+            <tr><td>Không đăng được Facebook</td><td>Kiểm tra <code>FACEBOOK_PAGE_ID</code>, <code>FACEBOOK_ACCESS_TOKEN</code>, <code>FACEBOOK_USER_TOKEN</code>.</td></tr>
+            <tr><td>Bot Playwright báo thiếu trình duyệt</td><td>Chạy <code>npm run install-browser</code> trong thư mục <code>bot/</code>.</td></tr>
+            <tr><td>Render video lỗi</td><td>Cài FFmpeg và chạy <code>npm install</code> trong <code>bot/video-maker/</code>.</td></tr>
+            <tr><td>Bảng DB chưa có</td><td>Gọi API <code>research</code>/<code>stats</code> (mở trang chính hoặc bấm "Thu thập tin") để tự tạo bảng.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="section" id="refs">
+      <h2><span class="num">10</span> Tham khảo thêm</h2>
+      <ul>
+        <li><a href="../README.md">README.md</a> — Tổng quan dự án, tech stack, cấu trúc thư mục.</li>
+        <li><a href="HUONG-DAN-CAI-DAT.md">HUONG-DAN-CAI-DAT.md</a> — Bản Markdown của tài liệu này.</li>
+        <li><a href="huong-dan-su-dung.html">huong-dan-su-dung.html</a> — Hướng dẫn sử dụng giao diện.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    Marketing Automation · Hướng dẫn cài đặt &amp; chạy · Giấy phép MIT
+  </div>
+
+</div>
+</body>
+</html>

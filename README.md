@@ -26,6 +26,8 @@ Hệ thống 3 bước khép kín cho content creator và marketer:
 
 ## Cài đặt
 
+> 📖 **Xem hướng dẫn cài đặt & chạy chi tiết:** [docs/HUONG-DAN-CAI-DAT.md](docs/HUONG-DAN-CAI-DAT.md) ([bản HTML](docs/huong-dan-cai-dat.html)) — yêu cầu hệ thống, khởi tạo database, cấu hình bot & video, xử lý sự cố.
+
 ```bash
 git clone https://github.com/dongphuongman/Post-Automation.git
 cd Post-Automation

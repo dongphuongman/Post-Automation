@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const { execSync } = require('child_process');
 const { sql } = require('./lib/db');
-const { PAGE_NAME, GROUPS, FB_API_VERSION } = require('./lib/config');
+const { PAGE_NAME, PAGE_URL, GROUPS, FB_API_VERSION } = require('./lib/config');
 const { llmChatCompletion } = require('./lib/llm-fetch');
 
 async function spinContent(originalContent) {
@@ -31,6 +31,16 @@ async function spinContent(originalContent) {
 
 const delay = (minSec, maxSec) =>
   new Promise(r => setTimeout(r, (Math.random() * (maxSec - minSec) + minSec) * 1000));
+
+// Chặn một tác vụ treo vô thời hạn: nếu quá `ms` mili-giây chưa xong thì ném lỗi timeout.
+// Dùng để bọc postToGroup — tránh việc một nhóm "kẹt" khiến cả bot đứng im mãi mãi.
+function withTimeout(promise, ms, label = 'thao tác') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Quá thời gian chờ ${Math.round(ms / 1000)}s cho ${label}`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 async function switchToPage(page) {
   try {
@@ -201,26 +211,267 @@ async function postToGroup(page, groupUrl, content, imagePath) {
   console.log(`   📸 Screenshot: ${filename}`);
 }
 
+// Chuyển hồ sơ ĐANG HOẠT ĐỘNG sang TRANG (Page). Với "Trang bản mới" của Facebook,
+// composer "Bạn đang nghĩ gì?" CHỈ xuất hiện khi bạn đang ở tư cách Trang — nếu vẫn
+// là hồ sơ cá nhân thì không có ô soạn bài để đăng AS Page.
+async function switchToPageIdentity(page) {
+  // Nếu composer đã sẵn → đang ở tư cách Trang rồi, bỏ qua.
+  try {
+    await page.locator('[aria-label*="Bạn đang nghĩ gì"], [aria-label*="What\'s on your mind"]')
+      .first().waitFor({ timeout: 4000 });
+    console.log('   ✅ Đang ở tư cách Trang (composer sẵn sàng).');
+    return true;
+  } catch {}
+
+  // Thử lần lượt các nút chuyển tư cách Trang (banner onboarding + nút ở khung hồ sơ).
+  const switchSelectors = [
+    'div[role="button"]:has-text("Chuyển ngay")',
+    `div[role="button"]:has-text("Chuyển thành ${PAGE_NAME}")`,
+    `div[role="button"][aria-label*="${PAGE_NAME}"]:has-text("Chuyển")`,
+    'div[role="button"]:has-text("Chuyển")',
+  ];
+  for (const sel of switchSelectors) {
+    try {
+      const el = page.locator(sel).first();
+      await el.waitFor({ timeout: 5000 });
+      await el.click();
+      console.log(`   🔄 Đã bấm chuyển sang tư cách Trang.`);
+      await delay(4, 7); // chờ FB tải lại giao diện Trang
+      return true;
+    } catch {}
+  }
+  console.log('   ⚠️ Không tìm thấy nút chuyển tư cách Trang — sẽ thử mở composer trực tiếp.');
+  return false;
+}
+
+// Đăng thẳng lên tường TRANG (Page) mà tài khoản đang quản trị — tư cách Page,
+// dùng cookie (không cần token). Cơ chế giống postToGroup nhưng nhắm vào composer
+// của Page ("Bạn đang nghĩ gì?") thay vì ô "Viết gì đó" của Nhóm.
+async function postToPage(page, content, imagePath) {
+  console.log(`\n📄 Trang (Page): ${PAGE_URL}`);
+  await page.goto(PAGE_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await delay(3, 6);
+
+  // Bước quan trọng: chuyển sang tư cách Trang để composer xuất hiện
+  await switchToPageIdentity(page);
+  await delay(1, 2);
+
+  // Mở composer của Page
+  const composerSelectors = [
+    '[aria-label*="Bạn đang nghĩ gì"]',
+    '[aria-label*="What\'s on your mind"]',
+    '[aria-label*="Tạo bài viết"]',
+    '[aria-label*="Create a post"]',
+    'div[role="button"]:has-text("Bạn đang nghĩ gì")',
+    'div[role="button"]:has-text("What\'s on your mind")',
+    'div[role="button"]:has-text("Viết bài")',
+    'span:has-text("Bạn đang nghĩ gì")',
+    'span:has-text("What\'s on your mind")',
+  ];
+
+  let opened = false;
+  for (const selector of composerSelectors) {
+    try {
+      const el = page.locator(selector).first();
+      await el.waitFor({ timeout: 10000 });
+      await el.click();
+      opened = true;
+      console.log(`   ✅ Mở composer Page bằng: ${selector}`);
+      break;
+    } catch {}
+  }
+
+  if (!opened) {
+    throw new Error('Không mở được ô soạn bài trên Page (kiểm tra: cookie có quyền quản trị Page? URL Page đúng?)');
+  }
+
+  await delay(2, 4);
+
+  // Tìm ô soạn thảo trong dialog (đăng trên Page mặc định là AS Page nên không cần switchToPage)
+  const editorSelectors = [
+    'div[role="dialog"] [contenteditable="true"][role="textbox"]',
+    'div[role="dialog"] [data-lexical-editor="true"]',
+    '[aria-label*="Nội dung bài viết"]',
+    '[aria-label*="What\'s on your mind"]',
+    '[contenteditable="true"][role="textbox"]',
+  ];
+
+  let editor = null;
+  for (const sel of editorSelectors) {
+    try {
+      const el = page.locator(sel).last();
+      await el.waitFor({ state: 'visible', timeout: 5000 });
+      editor = el;
+      break;
+    } catch {}
+  }
+
+  if (!editor) throw new Error('Không tìm thấy ô soạn thảo trên Page');
+
+  await editor.click();
+  await delay(1, 2);
+
+  // Gõ nội dung
+  const lines = content.split('\n');
+  for (const line of lines) {
+    await page.keyboard.type(line, { delay: 25 + Math.random() * 30 });
+    await page.keyboard.press('Enter');
+    await delay(0.2, 0.5);
+  }
+
+  await delay(1, 3);
+
+  // Đính kèm ảnh nếu có
+  if (imagePath && fs.existsSync(imagePath)) {
+    console.log(`   📸 Đang đính kèm ảnh vào bài Page...`);
+    try {
+      const photoBtn = page.locator([
+        'div[aria-label="Ảnh/video"]',
+        'div[aria-label="Photo/video"]',
+        'div[aria-label*="Ảnh"]',
+        'div[aria-label*="Photo"]',
+      ].join(', ')).first();
+
+      const [fileChooser] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 10000 }),
+        photoBtn.click(),
+      ]);
+      await fileChooser.setFiles(imagePath);
+      await delay(5, 8);
+      console.log(`   ✅ Ảnh đã lên khung đăng.`);
+    } catch (e) {
+      try {
+        const fileInput = page.locator('div[role="dialog"] input[type="file"][accept*="image"]').first();
+        await fileInput.setInputFiles(imagePath);
+        await delay(4, 7);
+      } catch (err) {}
+    }
+  }
+
+  await delay(2, 4);
+
+  // BƯỚC 1: Composer Page là luồng 2 bước — nếu có nút "Tiếp" thì bấm để sang
+  // màn "Cài đặt bài viết" (nơi mới có nút "Đăng" thật sự).
+  try {
+    const nextBtn = page.locator([
+      'div[aria-label="Tiếp"][role="button"]:not([aria-disabled="true"])',
+      'div[role="button"]:has-text("Tiếp"):not([aria-disabled="true"])',
+    ].join(', ')).last();
+    await nextBtn.waitFor({ timeout: 5000 });
+    await nextBtn.click();
+    console.log(`   ➡️  Đã bấm "Tiếp" (sang bước cài đặt bài viết).`);
+    await delay(2, 4);
+  } catch {
+    console.log(`   (Không thấy nút "Tiếp" — có thể composer 1 bước, thử bấm Đăng luôn.)`);
+  }
+
+  // BƯỚC 2: Bấm nút "Đăng"
+  const postBtnSelectors = [
+    'div[aria-label="Đăng"][role="button"]:not([aria-disabled="true"])',
+    'div[aria-label="Post"][role="button"]:not([aria-disabled="true"])',
+    'button[aria-label="Đăng"]',
+    'div[role="button"]:has-text("Đăng"):not([aria-disabled="true"])',
+  ];
+
+  let posted = false;
+  for (const sel of postBtnSelectors) {
+    try {
+      const btn = page.locator(sel).last();
+      await btn.waitFor({ timeout: 5000 });
+      await btn.click();
+      posted = true;
+      console.log(`   ✅ Đã bấm nút Đăng (Page)`);
+      break;
+    } catch {}
+  }
+
+  if (!posted) throw new Error('Không tìm thấy nút Đăng trên Page');
+
+  // BƯỚC 3: Sau khi bấm "Đăng", FB Page hay chèn popup upsell chặn giữa chừng
+  // ("Thêm nút Gọi ngay?" / "Trò chuyện trực tiếp..."). Phải bấm "Lúc khác" để
+  // bỏ qua thì bài mới thực sự được đăng.
+  await delay(2, 3);
+  for (let i = 0; i < 2; i++) {
+    try {
+      const skip = page.locator([
+        'div[role="button"]:has-text("Lúc khác")',
+        'div[role="button"]:has-text("Không phải bây giờ")',
+        'div[role="button"]:has-text("Để sau")',
+      ].join(', ')).first();
+      await skip.waitFor({ timeout: 4000 });
+      await skip.click();
+      console.log('   ✖️ Đã bỏ qua popup gợi ý ("Lúc khác") để hoàn tất đăng.');
+      await delay(2, 3);
+    } catch {
+      break; // không còn popup nào chặn
+    }
+  }
+
+  // BƯỚC 4 (QUAN TRỌNG): Chờ bài THỰC SỰ đăng xong.
+  // Nếu đóng browser khi FB còn "Đang đăng" thì bài sẽ bị HỦY → không lên tường.
+  // Đợi hộp thoại soạn bài đóng hẳn (dấu hiệu publish hoàn tất).
+  try {
+    await page.locator('div[role="dialog"]')
+      .filter({ hasText: 'Cài đặt bài viết' })
+      .first()
+      .waitFor({ state: 'detached', timeout: 90000 });
+    console.log('   ✅ Bài đã đăng xong (hộp thoại đã đóng).');
+  } catch {
+    console.log('   ⚠️ Chờ quá lâu chưa thấy hộp thoại đóng — có thể ảnh nặng/mạng chậm.');
+  }
+  await delay(4, 7); // để FB xử lý nốt phía server
+
+  fs.mkdirSync('screenshots', { recursive: true });
+  const filename = `screenshots/${Date.now()}-page.png`;
+  await page.screenshot({ path: filename });
+  console.log(`   📸 Screenshot: ${filename}`);
+}
+
 async function main() {
   // Lấy bài cần đăng từ DB
   let content = '';
   let postId = null;
   let imagePathLocal = null;
+  let dest = 'groups';                 // đích đến: 'page' hoặc 'groups'
+  let revertStatus = 'ready_for_groups'; // trạng thái để trả bài về khi thoát sớm/thất bại
 
   if (sql) {
     // Lấy timestamp hiện tại (giây) để so sánh với scheduled_time
     const currentEpoch = Math.floor(Date.now() / 1000);
 
-    const posts = await sql`
-      SELECT * FROM posts
-      WHERE status = 'ready_for_groups' 
-        AND (scheduled_time IS NULL OR scheduled_time <= ${currentEpoch})
-      ORDER BY id ASC
-      LIMIT 1
+    // CLAIM nguyên tử theo ĐỘ ƯU TIÊN: Page trước, Nhóm sau.
+    // Đổi ngay bài sang trạng thái tạm ('page_posting'/'groups_posting') để không
+    // luồng/lần chạy nào khác nhặt lại cùng bài — chống ĐĂNG TRÙNG kể cả khi crash.
+    let posts = await sql`
+      UPDATE posts SET status = 'page_posting'
+      WHERE id = (
+        SELECT id FROM posts
+        WHERE status = 'ready_for_page'
+          AND (scheduled_time IS NULL OR scheduled_time <= ${currentEpoch})
+        ORDER BY id ASC
+        LIMIT 1
+      )
+      RETURNING *
     `;
+    if (posts.length > 0) {
+      dest = 'page';
+      revertStatus = 'ready_for_page';
+    } else {
+      posts = await sql`
+        UPDATE posts SET status = 'groups_posting'
+        WHERE id = (
+          SELECT id FROM posts
+          WHERE status = 'ready_for_groups'
+            AND (scheduled_time IS NULL OR scheduled_time <= ${currentEpoch})
+          ORDER BY id ASC
+          LIMIT 1
+        )
+        RETURNING *
+      `;
+    }
     if (posts.length === 0) {
       if (!global.hasLoggedGroupsQueue) {
-        console.log('⏳ Chưa tới lịch Đăng Nhóm mới nào (hoặc các bài đang chờ tới giờ hoàng đạo).');
+        console.log('⏳ Chưa có bài nào tới lịch Đăng Page/Nhóm (hoặc đang chờ tới giờ hẹn).');
         global.hasLoggedGroupsQueue = true;
       }
       return false;
@@ -239,6 +490,7 @@ async function main() {
         
         if (fbData.is_published === false) {
           console.log(`⏳ Bài này hẹn giờ NHƯNG chưa thực sự xuất hiện chễm chệ trên Page chính. Bot sẽ hoãn lại chờ Page lên sóng trước nhé!`);
+          await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`; // nhả claim để lượt sau xử lý lại
           return;
         }
         
@@ -277,6 +529,7 @@ async function main() {
   if (!fs.existsSync('cookies.json')) {
     console.error('❌ Không tìm thấy file cookies.json!');
     console.log('👉 Cài Cookie-Editor trên Chrome → Export cookies từ Facebook → lưu thành cookies.json');
+    if (postId && sql) await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`; // nhả claim
     return;
   }
 
@@ -312,17 +565,58 @@ async function main() {
 
   if (page.url().includes('login')) {
     console.error('❌ Cookies hết hạn! Cần export lại cookies từ Facebook.');
+    if (postId && sql) await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`; // nhả claim
     await browser.close();
     return;
   }
   console.log('✅ Đăng nhập thành công!\n');
 
-  // Đăng lên từng nhóm
   let successCount = 0;
+
+  // ===== ĐÍCH = PAGE: đăng thẳng lên Trang (tư cách Page, dùng cookie) =====
+  if (dest === 'page') {
+    try {
+      const spunContent = await spinContent(content);
+      await withTimeout(
+        postToPage(page, spunContent, imagePathLocal),
+        4 * 60 * 1000,
+        `đăng Page ${PAGE_URL}`,
+      );
+      successCount = 1;
+    } catch (err) {
+      console.error(`❌ Lỗi đăng Page:`, err.message);
+      try {
+        fs.mkdirSync('screenshots', { recursive: true });
+        await page.screenshot({ path: `screenshots/error-page-${Date.now()}.png` });
+      } catch {}
+    }
+
+    if (postId && sql) {
+      if (successCount > 0) {
+        await sql`UPDATE posts SET status = 'posted' WHERE id = ${postId}`;
+        console.log(`\n✅ Cập nhật DB: bài ${postId} → posted (đã lên Page)\n`);
+      } else {
+        await sql`UPDATE posts SET status = 'ready_for_page' WHERE id = ${postId}`;
+        console.log(`\n↩️  Không đăng được Page — trả bài ${postId} về 'ready_for_page' để thử lại.\n`);
+      }
+    }
+
+    console.log(`\n🎉 Hoàn tất Đăng Page (${successCount > 0 ? 'THÀNH CÔNG' : 'THẤT BẠI'}). Sang bài tiếp theo...`);
+    await browser.close();
+    return true;
+  }
+
+  // ===== ĐÍCH = NHÓM: đăng lên từng nhóm =====
   for (const groupUrl of GROUPS) {
     try {
       const spunContent = await spinContent(content);
-      await postToGroup(page, groupUrl, spunContent, imagePathLocal);
+      // Bọc timeout 4 phút: nếu một nhóm bị kẹt (vd đích đến không phải group,
+      // UI đổi, mất mạng...) thì ném lỗi để nhảy sang nhóm sau thay vì treo mãi.
+      await withTimeout(
+        postToGroup(page, groupUrl, spunContent, imagePathLocal),
+        4 * 60 * 1000,
+        `đăng nhóm ${groupUrl}`,
+      );
       successCount++;
     } catch (err) {
       console.error(`❌ Lỗi nhóm ${groupUrl}:`, err.message);
@@ -341,10 +635,16 @@ async function main() {
     }
   }
 
-  // Cập nhật DB
-  if (postId && sql && successCount > 0) {
-    await sql`UPDATE posts SET status = 'groups_posted' WHERE id = ${postId}`;
-    console.log(`\n✅ Cập nhật DB: bài ${postId} → groups_posted\n`);
+  // Cập nhật DB (bài đang ở trạng thái tạm 'groups_posting' do đã CLAIM ở trên)
+  if (postId && sql) {
+    if (successCount > 0) {
+      await sql`UPDATE posts SET status = 'groups_posted' WHERE id = ${postId}`;
+      console.log(`\n✅ Cập nhật DB: bài ${postId} → groups_posted\n`);
+    } else {
+      // Không nhóm nào thành công → CHƯA đăng gì → trả về hàng đợi để thử lại sau.
+      await sql`UPDATE posts SET status = 'ready_for_groups' WHERE id = ${postId}`;
+      console.log(`\n↩️  Không đăng được nhóm nào — trả bài ${postId} về 'ready_for_groups' để thử lại.\n`);
+    }
   }
 
   console.log(`\n🎉 Hoàn tất! ${successCount}/${GROUPS.length} nhóm thành công. Sàng lọc sang bài tiếp theo...`);
@@ -572,7 +872,16 @@ async function startBot() {
     } catch(e) {}
   }
   
+  // Khóa chống chạy chồng: nếu chu kỳ trước chưa xong, bỏ qua chu kỳ mới
+  // để tránh 2 vòng cùng nhặt 1 bài ready_for_groups và ĐĂNG TRÙNG nhiều lần.
+  let isLoopRunning = false;
+
   const loop = async () => {
+    if (isLoopRunning) {
+      console.log('⏭️  Chu kỳ trước còn đang chạy — bỏ qua lượt này để tránh đăng trùng.');
+      return;
+    }
+    isLoopRunning = true;
     try {
       let isVideoProcessing = true;
       let isGroupProcessing = true;
@@ -587,6 +896,8 @@ async function startBot() {
 
     } catch (err) {
       console.error('💥 Lỗi không mong đợi trong quá trình quét:', err.message);
+    } finally {
+      isLoopRunning = false;
     }
   };
 

@@ -24,7 +24,15 @@ export async function POST(req: Request) {
 
     const results: any = {};
 
-    if (postTarget === 'page' || postTarget === 'all') {
+    // Đăng Page qua BOT Playwright (dùng cookie, không cần token): đánh dấu hàng đợi
+    if (postTarget === 'page') {
+      const ts = scheduledTime || null;
+      await sql`UPDATE posts SET status = 'ready_for_page', scheduled_time = ${ts} WHERE id = ${postId}`;
+      results.page = { success: true, message: 'Da danh dau cho Bot dang Page' };
+    }
+
+    // Target 'all' vẫn dùng Graph API cho Page (chỉ chạy nếu đã cấu hình FACEBOOK token)
+    if (postTarget === 'all') {
       const fbRes = await postToFacebook(finalContent, finalHashtags, imgUrl, scheduledTime);
       if (fbRes.id) {
         results.page = { success: true, id: fbRes.post_id || fbRes.id };
