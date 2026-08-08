@@ -89,7 +89,7 @@ FACEBOOK_USER_TOKEN=
 Người dùng (đăng nhập)
    │
    ├─ /            Pipeline 3 bước: Research → Write → Review & Publish
-   ├─ /dashboard   Hàng đợi bot: đếm bài theo trạng thái, bài gần đây
+   ├─ /dashboard   Hàng đợi bot: đếm bài theo trạng thái, bài gần đây (tách Chưa đăng / Đã đăng)
    ├─ /manage/*    Sources · Pages · Groups · Users · Settings (secret trong DB)
    └─ /profile     Đổi tên / mật khẩu
         │
@@ -187,7 +187,8 @@ LLM_MODEL=claude-sonnet-4-20250514
 - **Xác thực**: mật khẩu băm bằng **scrypt** (salt riêng, `timingSafeEqual`); session là token **ký HMAC** trong cookie `mkt_session` (HttpOnly, SameSite=Lax, `Secure` ở production, hạn 7 ngày), hỗ trợ thu hồi session.
 - **Mã hóa secret**: token/cookie Facebook Page và các secret trong `app_config` được mã hóa **AES-256-GCM** bằng `APP_ENCRYPTION_KEY`. API không bao giờ trả secret thô (Page chỉ trả `has_token`/`has_cookies`).
 - **Middleware**: gác toàn bộ route (trừ `/login`), thêm security headers (X-Frame-Options, nosniff, HSTS, CSP), và **kiểm tra CSRF** cho request ghi `/api/*` (Origin phải khớp Host).
-- **Rate limit** cho endpoint `research`; **phân tách dữ liệu theo `owner_id`** — user thường không thấy dữ liệu của người khác.
+- **Rate limit**: `login` 5 lần/phút theo IP (chống brute-force), `research` & `write` 10 lần/phút theo người dùng — vượt ngưỡng trả `429`.
+- **Phân tách dữ liệu theo `owner_id`**: user thường chỉ thấy dữ liệu của mình (articles, posts, pages, groups, sources, dashboard, stats); admin thấy tất cả.
 
 > ⚠️ `APP_ENCRYPTION_KEY` phải được sinh một lần và **giữ cố định vĩnh viễn**. Đổi key sẽ khiến toàn bộ secret đã lưu và session hiện tại không giải mã được.
 

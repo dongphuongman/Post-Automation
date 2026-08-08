@@ -498,6 +498,7 @@
         <li><a href="#bot">Bot đăng Facebook</a></li>
         <li><a href="#video">Module render video</a></li>
         <li><a href="#usage">Quy trình sử dụng</a></li>
+        <li><a href="#security">Bảo mật</a></li>
         <li><a href="#troubleshoot">Xử lý sự cố</a></li>
         <li><a href="#refs">Tham khảo thêm</a></li>
       </ol>
@@ -793,8 +794,65 @@ npm run build         # Render video ra out/video.mp4</code></pre>
     </section>
 
     <!-- 9 -->
+    <section class="section" id="security">
+      <h2><span class="num">9</span> Bảo mật</h2>
+      <p>Hệ thống có sẵn nhiều lớp bảo vệ; hầu hết bật tự động, chỉ cần đặt <code>APP_ENCRYPTION_KEY</code> đúng và giữ cố định.</p>
+
+      <h3>9.1. Xác thực &amp; phiên đăng nhập</h3>
+      <ul>
+        <li>Mật khẩu băm bằng <strong>scrypt</strong> (salt riêng, so sánh <code>timingSafeEqual</code>).</li>
+        <li>Phiên là token <strong>ký HMAC</strong> trong cookie <code>mkt_session</code> — <code>HttpOnly</code>, <code>SameSite=Lax</code>, thêm <code>Secure</code> khi chạy production, hạn 7 ngày.</li>
+        <li><strong>Thu hồi phiên</strong>: khi đổi mật khẩu ở <code>/profile</code> (hoặc admin đổi mật khẩu một user ở <code>/manage/users</code>), mọi phiên cũ của tài khoản đó bị vô hiệu ngay; người vừa đổi được cấp cookie mới nên không bị đăng xuất.</li>
+      </ul>
+
+      <h3>9.2. Mã hóa secret</h3>
+      <p>Token/cookie Facebook Page và secret trong <code>app_config</code> được mã hóa <strong>AES-256-GCM</strong> bằng <code>APP_ENCRYPTION_KEY</code>. API không bao giờ trả secret thô — Page chỉ trả cờ <code>has_token</code>/<code>has_cookies</code>.</p>
+
+      <h3>9.3. Middleware: security headers &amp; CSRF</h3>
+      <p>Mọi response đi qua <code>src/middleware.ts</code> đều gắn header bảo mật, và mọi request ghi (<code>POST/PATCH/DELETE/PUT</code>) tới <code>/api/*</code> bị kiểm tra <strong>CSRF</strong> — header <code>Origin</code> phải khớp <code>Host</code>, không khớp trả <code>403</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Header</th><th>Giá trị / tác dụng</th></tr></thead>
+          <tbody>
+            <tr><td><code>X-Frame-Options</code></td><td><code>DENY</code> — chống clickjacking</td></tr>
+            <tr><td><code>X-Content-Type-Options</code></td><td><code>nosniff</code></td></tr>
+            <tr><td><code>Referrer-Policy</code></td><td><code>strict-origin-when-cross-origin</code></td></tr>
+            <tr><td><code>Permissions-Policy</code></td><td>tắt camera/microphone/geolocation</td></tr>
+            <tr><td><code>Strict-Transport-Security</code></td><td>HSTS 2 năm, <code>includeSubDomains</code></td></tr>
+            <tr><td><code>Content-Security-Policy</code></td><td>CSP nới lỏng đủ cho Next.js; cho phép Google Fonts (<code>fonts.googleapis.com</code> / <code>fonts.gstatic.com</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Lưu ý CSP</span>
+        Nếu bạn nạp thêm asset từ domain ngoài (script/style/font/ảnh CDN mới), phải whitelist domain đó trong <code>Content-Security-Policy</code> ở <code>src/middleware.ts</code>, nếu không trình duyệt sẽ chặn.
+      </div>
+
+      <h3>9.4. Rate limit</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Giới hạn</th><th>Khóa theo</th></tr></thead>
+          <tbody>
+            <tr><td><code>/api/auth/login</code></td><td>5 lần / phút → <code>429</code></td><td>IP (chống brute-force)</td></tr>
+            <tr><td><code>/api/research</code></td><td>10 lần / phút → <code>429</code></td><td>người dùng (session)</td></tr>
+            <tr><td><code>/api/write</code></td><td>10 lần / phút → <code>429</code></td><td>người dùng (session)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="color: var(--text-muted); font-size: 14px;">Rate limit lưu trong bộ nhớ tiến trình (đủ cho self-host 1 tiến trình); reset khi khởi động lại app.</p>
+
+      <h3>9.5. Phân tách dữ liệu theo người dùng</h3>
+      <p>User thường chỉ thấy dữ liệu của chính mình (articles, posts, pages, groups, sources, dashboard, stats) nhờ lọc theo <code>owner_id</code>; tài khoản <code>admin</code> thấy tất cả. Trang <code>/manage/settings</code> và <code>/manage/users</code> chỉ admin truy cập được.</p>
+
+      <div class="callout">
+        <span class="callout-label">Quan trọng</span>
+        <code>APP_ENCRYPTION_KEY</code> phải sinh một lần và <strong>giữ cố định vĩnh viễn</strong>. Đổi key sẽ khiến toàn bộ secret đã lưu và session hiện tại không giải mã được.
+      </div>
+    </section>
+
+    <!-- 10 -->
     <section class="section" id="troubleshoot">
-      <h2><span class="num">9</span> Xử lý sự cố thường gặp</h2>
+      <h2><span class="num">10</span> Xử lý sự cố thường gặp</h2>
       <div class="table-wrap">
         <table>
           <thead>
@@ -816,9 +874,9 @@ npm run build         # Render video ra out/video.mp4</code></pre>
       </div>
     </section>
 
-    <!-- 10 -->
+    <!-- 11 -->
     <section class="section" id="refs">
-      <h2><span class="num">10</span> Tham khảo thêm</h2>
+      <h2><span class="num">11</span> Tham khảo thêm</h2>
       <ul>
         <li><a href="../README.md">README.md</a> — Tổng quan dự án, tech stack, cấu trúc thư mục.</li>
         <li><a href="HUONG-DAN-CAI-DAT.md">HUONG-DAN-CAI-DAT.md</a> — Bản Markdown của tài liệu này.</li>

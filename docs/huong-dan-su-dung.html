@@ -675,6 +675,10 @@ Password: admin123</code></pre>
         <span class="callout-label">Bảo mật</span>
         Đổi mật khẩu ngay tại <code>/profile</code> sau lần đăng nhập đầu tiên. Mỗi người dùng chỉ thấy dữ liệu của mình; tài khoản <code>admin</code> thấy tất cả.
       </div>
+      <div class="callout">
+        <span class="callout-label">Phiên đăng nhập</span>
+        Khi bạn đổi mật khẩu ở <code>/profile</code> (hoặc admin đổi mật khẩu một user ở <code>/manage/users</code>), <strong>mọi phiên cũ của tài khoản đó bị đăng xuất ngay</strong> — thiết bị khác phải đăng nhập lại. Người vừa đổi vẫn ở nguyên phiên. Ngoài ra, nhập sai mật khẩu quá <strong>5 lần/phút</strong> sẽ bị tạm khóa đăng nhập (mã <code>429</code>) — đợi khoảng 1 phút rồi thử lại.
+      </div>
 
       <h3>Trang quản trị (<code>/manage/*</code>)</h3>
       <div class="table-wrap">
@@ -686,7 +690,7 @@ Password: admin123</code></pre>
             <tr><td><code>/manage/groups</code></td><td>Quản lý Facebook Group gắn với Page</td></tr>
             <tr><td><code>/manage/settings</code></td><td>Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — <strong>chỉ admin</strong></td></tr>
             <tr><td><code>/manage/users</code></td><td>Quản lý người dùng &amp; phân quyền — <strong>chỉ admin</strong></td></tr>
-            <tr><td><code>/dashboard</code></td><td>Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây</td></tr>
+            <tr><td><code>/dashboard</code></td><td>Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây (tách <strong>Chưa đăng</strong> / <strong>Đã đăng</strong>)</td></tr>
           </tbody>
         </table>
       </div>
