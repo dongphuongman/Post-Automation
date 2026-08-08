@@ -7,6 +7,12 @@
 # ⚠️ Tag image PHẢI khớp version "playwright" mà npm cài (image bundle sẵn browser cho đúng version đó).
 FROM mcr.microsoft.com/playwright:v1.59.1-jammy
 
+# x11vnc + WM tối giản (fluxbox) cho chế độ đăng nhập FB qua VNC trên server headless.
+# Xem scripts/login-vnc.sh + docs/DEPLOY-COOLIFY.md. Không ảnh hưởng chế độ daemon.
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends x11vnc fluxbox \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Cài dependency (đã tách để tận dụng cache layer)

@@ -138,11 +138,53 @@ Container headless không tự mở cửa sổ để đăng nhập tay. Chọn 1
 |---|---|
 | **A. Copy profile (khuyến nghị)** | Chạy `npm run login` trên máy có màn hình → nén `bot/fb-profile/` → chép vào volume `mkt-fb-profile` của server (`docker cp` hoặc mount). Phiên bền qua redeploy. |
 | **B. Cookie bootstrap** | Xuất cookie Facebook, lưu vào Page ở `/manage/pages`. Bot tự nạp cookie để xác thực profile trống (cơ chế bootstrap đã có sẵn trong bot) — không cần đăng nhập tay. |
-| **C. VNC 1 lần** | Đổi lệnh chạy tạm sang `Xvfb + x11vnc`, VNC vào display ảo, đăng nhập, rồi quay lại lệnh thường. |
+| **C. VNC 1 lần (khuyến nghị cho server)** | Đăng nhập FB **tại chỗ** trên server qua VNC — không cần copy profile cross-OS. Xem [7.1 bên dưới](#71-đăng-nhập-facebook-qua-vnc-trên-server-headless). |
 
 > ⚠️ Dù chạy Xvfb, Facebook vẫn có thể yêu cầu xác minh thiết bị mới (checkpoint) khi profile lần đầu hoạt động trên server lạ. **Cách A** (mang nguyên profile đã đăng nhập sang) tránh được điều này tốt nhất.
 
 > Render video Reels (Remotion + FFmpeg) là module riêng, không bao gồm trong `bot/Dockerfile` tối giản này. Nếu cần, cài thêm FFmpeg (`apt-get install -y ffmpeg`) và dựng `bot/video-maker/`.
+
+### 7.1 Đăng nhập Facebook qua VNC (trên server headless)
+
+Image bot đã kèm sẵn `x11vnc` + `fluxbox` và script [`bot/scripts/login-vnc.sh`](../bot/scripts/login-vnc.sh). Cách này cho phép **đăng nhập FB trực tiếp trên server** (không phải login ở máy có màn hình rồi copy profile cross-OS — vốn kém ổn định).
+
+```bash
+# 1) Trên server: chạy container ở chế độ login (bó localhost cho an toàn)
+docker run --rm -it -p 127.0.0.1:5900:5900 \
+  -v mkt-fb-profile:/app/fb-profile \
+  mkt-bot bash scripts/login-vnc.sh
+
+# 2) Trên máy bạn: mở SSH tunnel tới cổng VNC
+ssh -L 5900:127.0.0.1:5900 user@server
+
+# 3) Mở VNC client (Screen Sharing trên macOS, TigerVNC/RealVNC...) tới:
+#    localhost:5900
+```
+
+Trong cửa sổ Chromium hiện ra qua VNC: **đăng nhập Facebook** (vượt checkpoint nếu có), (khuyến nghị) **Chuyển sang Trang** cần đăng, rồi **ĐÓNG cửa sổ Chromium** → phiên được lưu vào volume `mkt-fb-profile`. Sau đó chạy bot daemon bình thường (`docker run -d ... mkt-bot`).
+
+> **Bảo mật:** mặc định x11vnc bó `-localhost` — chỉ truy cập được qua SSH tunnel, **không mở cổng 5900 ra internet**. Nếu bắt buộc mở cổng trực tiếp, đặt env `VNC_PASSWORD` để có mật khẩu (vẫn kém an toàn hơn tunnel).
+> **Coolify:** đây là thao tác `docker run` thủ công **một lần** trên server (SSH vào server), không chạy qua UI Coolify. Sau khi có phiên trong volume, Coolify chạy daemon dùng chung volume đó.
+
+### 7.2 Làm mới / thay profile (KHÔNG cần rebuild image)
+
+Profile FB (`/app/fb-profile`) là **volume**, tách khỏi image. Nên:
+
+| Bạn đổi cái gì | Cần làm | Rebuild image? |
+|---|---|:---:|
+| **Code bot** (logic, selector, Dockerfile...) | Rebuild image + redeploy | ✅ Có |
+| **Profile** (đăng nhập lại, session hết hạn, đổi tài khoản/Trang) | Chỉ **cập nhật nội dung volume** | ❌ Không |
+
+Làm mới profile khi phiên hết hạn / bị FB đăng xuất — chọn 1:
+
+- **VNC in-place (khuyến nghị):** chạy lại [7.1](#71-đăng-nhập-facebook-qua-vnc-trên-server-headless) rồi đăng nhập lại. Volume được ghi đè phiên mới, không đụng image.
+- **Copy từ máy có màn hình:** `npm run login` cục bộ → chép `bot/fb-profile/` vào volume server:
+  ```bash
+  # ví dụ nạp vào named volume qua container tạm
+  tar -C bot/fb-profile -cf - . | \
+    docker run --rm -i -v mkt-fb-profile:/dest busybox sh -c 'cd /dest && tar -xf -'
+  ```
+  (Lưu ý cross-OS: profile macOS→Linux có thể bị coi là thiết bị mới → checkpoint; VNC in-place tránh được điều này.)
 
 ## 8. Cập nhật / redeploy
 
