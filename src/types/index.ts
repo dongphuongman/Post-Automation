@@ -45,5 +45,12 @@ export interface PublishPayload {
   overrideContent?: string;
   overrideHashtags?: string;
   scheduledTime?: number;
+  targetPageId?: string;
+  targetGroupIds?: string[];
+}
+
+export interface PublishTarget {
+  pageId?: string;
+  groupIds?: string[];
 }
 

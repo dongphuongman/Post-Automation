@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import { hashPassword } from './auth';
 
 if (!process.env.POSTGRES_URL) {
   console.warn("POSTGRES_URL is not defined in environment variables. Database operations will fail.");
@@ -6,7 +7,18 @@ if (!process.env.POSTGRES_URL) {
 
 export const sql = neon(process.env.POSTGRES_URL || 'postgresql://dummy:dummy@dummy/dummy');
 
+// Chạy DDL (CREATE/ALTER) chỉ MỘT lần mỗi tiến trình — tránh 6+ round-trip DDL
+// tới Neon mỗi request (làm chậm 4-19s). Sau lần đầu, initDb() trả về ngay.
+let initPromise: Promise<void> | null = null;
+
 export async function initDb() {
+  if (initPromise) return initPromise;
+  // Nếu init lỗi (DB tạm gián đoạn) → xóa cache để request sau thử lại.
+  initPromise = doInitDb().catch((e) => { initPromise = null; throw e; });
+  return initPromise;
+}
+
+async function doInitDb() {
   await sql`CREATE TABLE IF NOT EXISTS sources (
     id TEXT PRIMARY KEY,
     name TEXT,
@@ -46,6 +58,73 @@ export async function initDb() {
     selected_image_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`;
+
+  // Cột chọn đích cho từng bài (per-post targeting). ADD COLUMN IF NOT EXISTS để
+  // an toàn với DB đã tồn tại.
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS target_page_id TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS target_group_ids TEXT`;
+
+  // Quản lý đa Page: mỗi Page có token (Graph) + cookie (Playwright) riêng, mã hóa.
+  await sql`CREATE TABLE IF NOT EXISTS facebook_pages (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    url TEXT,
+    page_id TEXT,
+    access_token_enc TEXT,
+    cookies_enc TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+
+  // Nhóm Facebook, gắn với một Page (page_id → facebook_pages.id).
+  await sql`CREATE TABLE IF NOT EXISTS facebook_groups (
+    id TEXT PRIMARY KEY,
+    page_id TEXT,
+    url TEXT,
+    name TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+
+  // Cấu hình app dạng key/value: LLM/API keys (mã hóa khi is_secret) + cài đặt chung.
+  await sql`CREATE TABLE IF NOT EXISTS app_config (
+    key TEXT PRIMARY KEY,
+    value_enc TEXT,
+    is_secret BOOLEAN DEFAULT FALSE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+
+  // Người dùng + phân quyền (role: 'admin' | 'user').
+  await sql`CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE,
+    name TEXT,
+    password_hash TEXT,
+    role TEXT DEFAULT 'user',
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+
+  // Gắn dữ liệu theo chủ sở hữu (owner_id → users.id). NULL = dữ liệu cũ (gán admin).
+  await sql`ALTER TABLE sources ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+  await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+  await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+  await sql`ALTER TABLE facebook_pages ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+  await sql`ALTER TABLE facebook_groups ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+
+  // Seed admin mặc định nếu chưa có user nào (đổi mật khẩu ngay sau khi đăng nhập).
+  const [{ c }] = (await sql`SELECT count(*)::int AS c FROM users`) as unknown as { c: number }[];
+  if (c === 0) {
+    await sql`INSERT INTO users (id, email, name, password_hash, role, active)
+      VALUES ('u_admin', 'admin@local', 'Admin', ${hashPassword('admin123')}, 'admin', 1)`;
+    // Gán toàn bộ dữ liệu hiện có cho admin để không mất khi bật scoping.
+    await sql`UPDATE sources SET owner_id = 'u_admin' WHERE owner_id IS NULL`;
+    await sql`UPDATE articles SET owner_id = 'u_admin' WHERE owner_id IS NULL`;
+    await sql`UPDATE posts SET owner_id = 'u_admin' WHERE owner_id IS NULL`;
+    await sql`UPDATE facebook_pages SET owner_id = 'u_admin' WHERE owner_id IS NULL`;
+    await sql`UPDATE facebook_groups SET owner_id = 'u_admin' WHERE owner_id IS NULL`;
+    console.log("Seeded admin user: admin@local / admin123 (đổi mật khẩu ngay!)");
+  }
 }
 
 export async function seedDb() {

@@ -46,3 +46,6 @@ bot/video-maker/out/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Bot Facebook persistent profile (chứa phiên đăng nhập)
+bot/fb-profile/

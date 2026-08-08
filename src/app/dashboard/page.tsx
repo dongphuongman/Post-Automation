@@ -1,0 +1,120 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+
+interface DashboardData {
+  statusCounts: Record<string, number>;
+  videoCounts: Record<string, number>;
+  totals: { pages: number; groups: number; sources: number };
+  recent: {
+    id: string; status: string; video_status: string;
+    target_page_id: string | null; target_group_ids: string | null;
+    scheduled_time: number | null; created_at: string;
+    article_title: string | null; page_name: string | null;
+  }[];
+}
+
+// Nhãn tiếng Việt + màu cho từng trạng thái hàng đợi.
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  draft: { label: 'Nháp', color: '#64748b' },
+  ready_for_page: { label: 'Chờ đăng Page', color: '#0ea5e9' },
+  ready_for_groups: { label: 'Chờ đăng Nhóm', color: '#8b5cf6' },
+  page_posting: { label: 'Đang đăng Page', color: '#f59e0b' },
+  groups_posting: { label: 'Đang đăng Nhóm', color: '#f59e0b' },
+  posted: { label: 'Đã đăng (Page)', color: '#10b981' },
+  groups_posted: { label: 'Đã đăng (Nhóm)', color: '#10b981' },
+};
+
+function statusLabel(s: string) { return STATUS_META[s]?.label || s; }
+function statusColor(s: string) { return STATUS_META[s]?.color || '#64748b'; }
+
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/dashboard');
+      const d = await res.json();
+      if (d.success) setData(d);
+    } catch { console.error('dashboard load fail'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const orderedStatuses = ['ready_for_page', 'ready_for_groups', 'page_posting', 'groups_posting', 'posted', 'groups_posted', 'draft'];
+
+  return (
+    <div className="manage-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 className="page-title">📊 Dashboard</h1>
+          <p className="page-subtitle">Theo dõi hàng đợi bot &amp; cấu hình đang hoạt động.</p>
+        </div>
+        <button className="btn-secondary" onClick={load} disabled={loading}>{loading ? '...' : '↻ Làm mới'}</button>
+      </div>
+
+      {!data ? <p className="form-hint">Đang tải...</p> : (
+        <>
+          <div className="stat-grid">
+            {orderedStatuses.filter(s => data.statusCounts[s]).map(s => (
+              <div key={s} className="stat-tile" style={{ borderLeft: `4px solid ${statusColor(s)}` }}>
+                <div className="stat-value">{data.statusCounts[s]}</div>
+                <div className="stat-label">{statusLabel(s)}</div>
+              </div>
+            ))}
+            {data.videoCounts.pending ? (
+              <div className="stat-tile" style={{ borderLeft: '4px solid #ec4899' }}>
+                <div className="stat-value">{data.videoCounts.pending}</div>
+                <div className="stat-label">Video chờ render</div>
+              </div>
+            ) : null}
+            {data.videoCounts.error ? (
+              <div className="stat-tile" style={{ borderLeft: '4px solid #dc2626' }}>
+                <div className="stat-value">{data.videoCounts.error}</div>
+                <div className="stat-label">Video lỗi</div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="stat-grid">
+            <div className="stat-tile"><div className="stat-value">{data.totals.pages}</div><div className="stat-label">Page đang bật</div></div>
+            <div className="stat-tile"><div className="stat-value">{data.totals.groups}</div><div className="stat-label">Nhóm đang bật</div></div>
+            <div className="stat-tile"><div className="stat-value">{data.totals.sources}</div><div className="stat-label">Nguồn đang bật</div></div>
+          </div>
+
+          <div className="section-header">
+            <span className="section-title">Bài gần đây</span>
+            <span className="section-count">{data.recent.length}</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.recent.map(p => {
+              let groupCount = 0;
+              try { groupCount = p.target_group_ids ? JSON.parse(p.target_group_ids).length : 0; } catch {}
+              return (
+                <div key={p.id} className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{p.article_title || p.id}</div>
+                      <div className="form-hint">
+                        {p.page_name ? `→ ${p.page_name}` : ''}{groupCount ? ` · ${groupCount} nhóm` : ''}
+                        {p.scheduled_time ? ` · hẹn ${new Date(p.scheduled_time * 1000).toLocaleString('vi-VN')}` : ''}
+                      </div>
+                    </div>
+                    <span className="badge" style={{ background: statusColor(p.status) + '22', color: statusColor(p.status), flexShrink: 0 }}>
+                      {statusLabel(p.status)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            {data.recent.length === 0 && <div className="empty-state"><div className="empty-icon">📭</div>Chưa có bài nào.</div>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

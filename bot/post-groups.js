@@ -6,9 +6,15 @@
 
 const { chromium } = require('playwright');
 const fs = require('fs');
+const path = require('path');
 const { execSync } = require('child_process');
+
+// Thư mục profile Chromium cố định (persistent) — giữ phiên đăng nhập FB như trình
+// duyệt thật, tránh bị FB coi là "thiết bị lạ" và đòi đăng nhập/checkpoint.
+const FB_PROFILE_DIR = path.resolve(__dirname, 'fb-profile');
 const { sql } = require('./lib/db');
 const { PAGE_NAME, PAGE_URL, GROUPS, FB_API_VERSION } = require('./lib/config');
+const { getPageById, getGroupUrlsByIds, getActiveGroupUrlsForPage } = require('./lib/config-db');
 const { llmChatCompletion } = require('./lib/llm-fetch');
 
 async function spinContent(originalContent) {
@@ -42,7 +48,7 @@ function withTimeout(promise, ms, label = 'thao tác') {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function switchToPage(page) {
+async function switchToPage(page, pageName = PAGE_NAME) {
   try {
     // Tìm nút "Đang đăng với tư cách..." hoặc avatar/tên cá nhân
     const switchBtn = page.locator([
@@ -56,11 +62,11 @@ async function switchToPage(page) {
     await delay(1, 2);
 
     // Trong dropdown chọn Page theo tên
-    const pageOption = page.locator(`div[role="menuitem"]:has-text("${PAGE_NAME}"), div[role="option"]:has-text("${PAGE_NAME}")`).first();
+    const pageOption = page.locator(`div[role="menuitem"]:has-text("${pageName}"), div[role="option"]:has-text("${pageName}")`).first();
     await pageOption.waitFor({ timeout: 8000 });
     await pageOption.click();
     await delay(1, 2);
-    console.log(`   ✅ Đã chuyển sang đăng với tư cách: ${PAGE_NAME}`);
+    console.log(`   ✅ Đã chuyển sang đăng với tư cách: ${pageName}`);
     return true;
   } catch (err) {
     console.log(`   ⚠️  Không tìm thấy nút chuyển Page, sẽ đăng bằng account hiện tại. Lỗi: ${err.message}`);
@@ -68,7 +74,7 @@ async function switchToPage(page) {
   }
 }
 
-async function postToGroup(page, groupUrl, content, imagePath) {
+async function postToGroup(page, groupUrl, content, imagePath, pageName = PAGE_NAME) {
   console.log(`\n📌 Nhóm: ${groupUrl}`);
   await page.goto(groupUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await delay(3, 6);
@@ -107,7 +113,7 @@ async function postToGroup(page, groupUrl, content, imagePath) {
   await delay(2, 4);
 
   // Chuyển sang đăng AS Page
-  await switchToPage(page);
+  await switchToPage(page, pageName);
 
   // Tìm ô soạn thảo thực sự (sau khi click mở)
   // Ưu tiên các ô soạn thảo NẰM TRONG BẢNG POP-UP (Modal/Dialog) để không bị click nhầm xuống Background Comment
@@ -214,7 +220,7 @@ async function postToGroup(page, groupUrl, content, imagePath) {
 // Chuyển hồ sơ ĐANG HOẠT ĐỘNG sang TRANG (Page). Với "Trang bản mới" của Facebook,
 // composer "Bạn đang nghĩ gì?" CHỈ xuất hiện khi bạn đang ở tư cách Trang — nếu vẫn
 // là hồ sơ cá nhân thì không có ô soạn bài để đăng AS Page.
-async function switchToPageIdentity(page) {
+async function switchToPageIdentity(page, pageName = PAGE_NAME) {
   // Nếu composer đã sẵn → đang ở tư cách Trang rồi, bỏ qua.
   try {
     await page.locator('[aria-label*="Bạn đang nghĩ gì"], [aria-label*="What\'s on your mind"]')
@@ -226,8 +232,8 @@ async function switchToPageIdentity(page) {
   // Thử lần lượt các nút chuyển tư cách Trang (banner onboarding + nút ở khung hồ sơ).
   const switchSelectors = [
     'div[role="button"]:has-text("Chuyển ngay")',
-    `div[role="button"]:has-text("Chuyển thành ${PAGE_NAME}")`,
-    `div[role="button"][aria-label*="${PAGE_NAME}"]:has-text("Chuyển")`,
+    `div[role="button"]:has-text("Chuyển thành ${pageName}")`,
+    `div[role="button"][aria-label*="${pageName}"]:has-text("Chuyển")`,
     'div[role="button"]:has-text("Chuyển")',
   ];
   for (const sel of switchSelectors) {
@@ -247,13 +253,13 @@ async function switchToPageIdentity(page) {
 // Đăng thẳng lên tường TRANG (Page) mà tài khoản đang quản trị — tư cách Page,
 // dùng cookie (không cần token). Cơ chế giống postToGroup nhưng nhắm vào composer
 // của Page ("Bạn đang nghĩ gì?") thay vì ô "Viết gì đó" của Nhóm.
-async function postToPage(page, content, imagePath) {
-  console.log(`\n📄 Trang (Page): ${PAGE_URL}`);
-  await page.goto(PAGE_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+async function postToPage(page, content, imagePath, pageName = PAGE_NAME, pageUrl = PAGE_URL) {
+  console.log(`\n📄 Trang (Page): ${pageUrl}`);
+  await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await delay(3, 6);
 
   // Bước quan trọng: chuyển sang tư cách Trang để composer xuất hiện
-  await switchToPageIdentity(page);
+  await switchToPageIdentity(page, pageName);
   await delay(1, 2);
 
   // Mở composer của Page
@@ -434,6 +440,8 @@ async function main() {
   let imagePathLocal = null;
   let dest = 'groups';                 // đích đến: 'page' hoặc 'groups'
   let revertStatus = 'ready_for_groups'; // trạng thái để trả bài về khi thoát sớm/thất bại
+  let pageCfg = null;                  // cấu hình Page đích (name/url/cookies) từ DB
+  let targetGroupIdsRaw = null;        // JSON mảng id nhóm đích của bài
 
   if (sql) {
     // Lấy timestamp hiện tại (giây) để so sánh với scheduled_time
@@ -480,7 +488,12 @@ async function main() {
     global.hasLoggedGroupsQueue = false;
     postId = post.id;
     content = `${post.content}\n\n${post.hashtags}`;
-    
+
+    // Nạp cấu hình Page đích (đa Page) từ DB — cookie/token/tên/URL riêng cho bài này.
+    pageCfg = await getPageById(post.target_page_id);
+    targetGroupIdsRaw = post.target_group_ids;
+    if (pageCfg) console.log(`🏷️  Page đích: ${pageCfg.name} (${pageCfg.cookies ? 'có cookie DB' : 'không cookie DB'})`);
+
     // Nếu có facebook_post_id, gọi Graph API để kiểm tra xem đã Public trên Page chưa và lấy nội dung chuẩn
     if (post.facebook_post_id && process.env.FACEBOOK_ACCESS_TOKEN) {
       console.log(`\n🔍 Đang kiểm tra trạng thái bài viết cực căng trên Page (FB_ID: ${post.facebook_post_id})...`);
@@ -525,17 +538,13 @@ async function main() {
     console.log('⚠️  Chạy test mode (không có DATABASE_URL)');
   }
 
-  // Load cookies
-  if (!fs.existsSync('cookies.json')) {
-    console.error('❌ Không tìm thấy file cookies.json!');
-    console.log('👉 Cài Cookie-Editor trên Chrome → Export cookies từ Facebook → lưu thành cookies.json');
-    if (postId && sql) await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`; // nhả claim
-    return;
+  // Cookie (từ DB theo Page, hoặc file) — CHỈ dùng để "bootstrap" lần đầu nếu profile
+  // chưa đăng nhập. Không bắt buộc: profile cố định mới là nguồn phiên chính.
+  let rawCookies = pageCfg?.cookies || null;
+  if (!rawCookies && fs.existsSync('cookies.json')) {
+    try { rawCookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8')); } catch {}
   }
-
-  let cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
-  // Playwright cần format khác Cookie-Editor một chút
-  cookies = cookies.map(c => ({
+  const cookies = (rawCookies || []).map(c => ({
     name: c.name,
     value: c.value,
     domain: c.domain,
@@ -546,41 +555,62 @@ async function main() {
     sameSite: 'None',
   }));
 
-  const browser = await chromium.launch({
-    headless: false, // false = thấy browser (nên để false lúc test)
-    args: ['--lang=vi-VN'],
-  });
-
-  const context = await browser.newContext({
+  // Dùng PROFILE CỐ ĐỊNH (persistent) thay cho context trống + nhét cookie:
+  // FB tin như trình duyệt thật (giữ localStorage/fingerprint), không đòi login lại.
+  const context = await chromium.launchPersistentContext(FB_PROFILE_DIR, {
+    headless: false,
     viewport: { width: 1280, height: 800 },
     locale: 'vi-VN',
+    args: ['--lang=vi-VN'],
   });
+  const browser = context.browser(); // để các lệnh browser.close() cũ vẫn chạy
+  const page = context.pages()[0] || await context.newPage();
 
-  await context.addCookies(cookies);
-  const page = await context.newPage();
+  // Kiểm tra cookies còn hợp lệ — không chỉ dò URL 'login' mà còn dò trang
+  // checkpoint/đăng nhập (ô mật khẩu, nút "Đăng nhập") vì FB hay chặn bot bằng
+  // checkpoint có URL không chứa 'login'.
+  const isLoggedOut = async () => {
+    const u = page.url();
+    if (u.includes('login') || u.includes('checkpoint') || u.includes('/recover')) return true;
+    try {
+      return await page.locator('input[name="pass"], input[type="password"], form[action*="login"]')
+        .first().isVisible({ timeout: 3000 }).catch(() => false);
+    } catch { return false; }
+  };
 
-  // Kiểm tra cookies còn hợp lệ
   await page.goto('https://www.facebook.com', { waitUntil: 'domcontentloaded' });
   await delay(3, 5);
 
-  if (page.url().includes('login')) {
-    console.error('❌ Cookies hết hạn! Cần export lại cookies từ Facebook.');
+  // Nếu profile chưa đăng nhập → thử nạp cookie (bootstrap) một lần.
+  if (await isLoggedOut() && cookies.length) {
+    console.log('   🔑 Profile chưa đăng nhập — thử bootstrap bằng cookie...');
+    try { await context.addCookies(cookies); } catch {}
+    await page.goto('https://www.facebook.com', { waitUntil: 'domcontentloaded' });
+    await delay(3, 5);
+  }
+
+  if (await isLoggedOut()) {
+    console.error('❌ Profile của bot CHƯA đăng nhập Facebook (hoặc bị checkpoint).');
+    console.error('👉 Chạy 1 lần:  node scripts/login.js  → đăng nhập FB trong cửa sổ đó (vượt xác minh nếu có) → đóng cửa sổ. Rồi chạy lại bot.');
     if (postId && sql) await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`; // nhả claim
     await browser.close();
     return;
   }
-  console.log('✅ Đăng nhập thành công!\n');
+  console.log('✅ Phiên hợp lệ (profile đã đăng nhập).\n');
 
   let successCount = 0;
+  // Tên/URL Page đích: từ DB nếu có, fallback config.js.
+  const pageName = pageCfg?.name || PAGE_NAME;
+  const pageUrl = pageCfg?.url || PAGE_URL;
 
   // ===== ĐÍCH = PAGE: đăng thẳng lên Trang (tư cách Page, dùng cookie) =====
   if (dest === 'page') {
     try {
       const spunContent = await spinContent(content);
       await withTimeout(
-        postToPage(page, spunContent, imagePathLocal),
+        postToPage(page, spunContent, imagePathLocal, pageName, pageUrl),
         4 * 60 * 1000,
-        `đăng Page ${PAGE_URL}`,
+        `đăng Page ${pageUrl}`,
       );
       successCount = 1;
     } catch (err) {
@@ -606,14 +636,33 @@ async function main() {
     return true;
   }
 
-  // ===== ĐÍCH = NHÓM: đăng lên từng nhóm =====
-  for (const groupUrl of GROUPS) {
+  // ===== ĐÍCH = NHÓM: đăng lên các nhóm ĐÍCH của bài (chỉ nhóm ĐANG BẬT trong DB) =====
+  let groupUrls = [];
+  if (targetGroupIdsRaw) {
+    // getGroupUrlsByIds đã lọc active=1 → nhóm đã tắt sẽ KHÔNG được đăng.
+    try { groupUrls = await getGroupUrlsByIds(JSON.parse(targetGroupIdsRaw)); } catch {}
+  }
+  if (!groupUrls.length && pageCfg) groupUrls = await getActiveGroupUrlsForPage(pageCfg.id);
+  // CHỈ fallback về config.js khi CHƯA có Page trong DB (chế độ legacy).
+  // Nếu đã dùng DB mà không nhóm nào bật → KHÔNG đăng nhóm nào (tôn trọng việc tắt nhóm).
+  if (!groupUrls.length && !pageCfg) groupUrls = GROUPS;
+
+  if (groupUrls.length === 0) {
+    console.log('⚪ Không có nhóm nào đang bật cho bài này — bỏ qua đăng nhóm (đánh dấu xong).');
+    if (postId && sql) await sql`UPDATE posts SET status = 'groups_posted' WHERE id = ${postId}`;
+    await browser.close();
+    return true;
+  }
+
+  console.log(`👥 Đăng vào ${groupUrls.length} nhóm (tư cách ${pageName}).`);
+
+  for (const groupUrl of groupUrls) {
     try {
       const spunContent = await spinContent(content);
       // Bọc timeout 4 phút: nếu một nhóm bị kẹt (vd đích đến không phải group,
       // UI đổi, mất mạng...) thì ném lỗi để nhảy sang nhóm sau thay vì treo mãi.
       await withTimeout(
-        postToGroup(page, groupUrl, spunContent, imagePathLocal),
+        postToGroup(page, groupUrl, spunContent, imagePathLocal, pageName),
         4 * 60 * 1000,
         `đăng nhóm ${groupUrl}`,
       );
@@ -626,7 +675,7 @@ async function main() {
       } catch {}
     }
 
-    if (GROUPS.indexOf(groupUrl) < GROUPS.length - 1) {
+    if (groupUrls.indexOf(groupUrl) < groupUrls.length - 1) {
       const waitMin = 60; // 1 phút
       const waitMax = 300; // 5 phút
       const wait = waitMin + Math.random() * (waitMax - waitMin);
@@ -647,7 +696,7 @@ async function main() {
     }
   }
 
-  console.log(`\n🎉 Hoàn tất! ${successCount}/${GROUPS.length} nhóm thành công. Sàng lọc sang bài tiếp theo...`);
+  console.log(`\n🎉 Hoàn tất! ${successCount}/${groupUrls.length} nhóm thành công. Sàng lọc sang bài tiếp theo...`);
   await browser.close();
   return true;
 }

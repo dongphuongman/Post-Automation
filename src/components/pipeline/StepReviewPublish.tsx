@@ -5,6 +5,7 @@ import { PostCard } from './PostCard';
 import { ScheduleSettings } from './ScheduleSettings';
 import { PublishActions } from './PublishActions';
 import { PostHistory } from './PostHistory';
+import { TargetSelector } from './TargetSelector';
 
 interface StepReviewPublishProps {
   draftPosts: Post[];
@@ -24,11 +25,18 @@ interface StepReviewPublishProps {
   onHashtagsChange: (id: string, hashtags: string) => void;
   onPublish: (target: PostTarget) => void;
   onDelete: () => void;
+  targetPageId: string;
+  targetGroupIds: string[];
+  onTargetPageChange: (id: string) => void;
+  onTargetGroupsChange: (ids: string[]) => void;
 }
 
 export function StepReviewPublish(props: StepReviewPublishProps) {
   return (
     <div className="animate-in">
+      <TargetSelector pageId={props.targetPageId} groupIds={props.targetGroupIds}
+        onPageChange={props.onTargetPageChange} onGroupsChange={props.onTargetGroupsChange} />
+
       <ScheduleSettings scheduleStart={props.scheduleStart} scheduleInterval={props.scheduleInterval}
         onStartChange={props.onScheduleStartChange} onIntervalChange={props.onScheduleIntervalChange} />
 

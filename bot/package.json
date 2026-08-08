@@ -5,6 +5,7 @@
   "main": "post-groups.js",
   "scripts": {
     "post": "node post-groups.js",
+    "login": "node scripts/login.js",
     "install-browser": "npx playwright install chromium",
     "check-db": "node scripts/check-db.js",
     "fix-db": "node scripts/fix-db.js",

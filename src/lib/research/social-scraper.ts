@@ -1,4 +1,5 @@
 import { ScrapedArticle } from './rss-scraper';
+import { getConfig } from '@/lib/config-store';
 
 // Query X: AI ứng dụng thực chiến, tin mới, tương tác cao
 // min_faves:200 = chỉ lấy bài có ít nhất 200 likes
@@ -19,9 +20,9 @@ const IG_HASHTAGS = [
 ];
 
 export async function searchSocialMedia(platform: 'x' | 'instagram'): Promise<ScrapedArticle[]> {
-  const rapidApiKey = process.env.RAPID_API_KEY;
-  if (!rapidApiKey) throw new Error('Missing RAPID_API_KEY environment variable');
-  const braveApiKey = process.env.BRAVE_API_KEY;
+  const rapidApiKey = await getConfig('RAPID_API_KEY');
+  if (!rapidApiKey) throw new Error('Missing RAPID_API_KEY (chưa cấu hình trong DB/env)');
+  const braveApiKey = await getConfig('BRAVE_API_KEY');
   const sourceName = platform === 'x' ? 'X (Twitter)' : 'Instagram';
 
   try {

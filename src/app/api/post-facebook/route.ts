@@ -2,16 +2,22 @@ import { sql } from '@/lib/db';
 import { postToFacebook } from '@/lib/facebook/poster';
 import { ok, fail } from '@/lib/api-response';
 import { MIN_SCHEDULE_AHEAD_MINUTES } from '@/lib/constants';
+import { decrypt } from '@/lib/crypto';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const { postId, imageType, scheduledTime, overrideContent, overrideHashtags, postTarget = 'page', createVideo = false } = await req.json();
+    const s = getSession(req);
+    if (!s) return fail('Chưa đăng nhập', 401);
+    const { postId, imageType, scheduledTime, overrideContent, overrideHashtags, postTarget = 'page', createVideo = false, targetPageId, targetGroupIds } = await req.json();
     const [post] = await sql`SELECT * FROM posts WHERE id = ${postId}`;
     if (!post) return fail('Post not found', 404);
+    if (s.role !== 'admin' && post.owner_id !== s.uid) return fail('Không có quyền', 403);
 
     const imgUrl = imageType === 'generated' ? post.generated_image_url : post.original_image_url;
     const finalContent = overrideContent ?? post.content;
     const finalHashtags = overrideHashtags ?? post.hashtags;
+    const groupIdsJson = Array.isArray(targetGroupIds) && targetGroupIds.length ? JSON.stringify(targetGroupIds) : null;
 
     if (scheduledTime) {
       const nowEpoch = Math.floor(Date.now() / 1000);
@@ -20,7 +26,8 @@ export async function POST(req: Request) {
       }
     }
 
-    await sql`UPDATE posts SET content = ${finalContent}, hashtags = ${finalHashtags}, create_video = ${createVideo}, video_status = ${createVideo ? 'pending' : 'none'}, selected_image_url = ${imgUrl} WHERE id = ${postId}`;
+    // Lưu nội dung + ĐÍCH ĐĂNG (Page + nhóm) để bot biết đăng vào đâu.
+    await sql`UPDATE posts SET content = ${finalContent}, hashtags = ${finalHashtags}, create_video = ${createVideo}, video_status = ${createVideo ? 'pending' : 'none'}, selected_image_url = ${imgUrl}, target_page_id = ${targetPageId || null}, target_group_ids = ${groupIdsJson} WHERE id = ${postId}`;
 
     const results: any = {};
 
@@ -31,9 +38,16 @@ export async function POST(req: Request) {
       results.page = { success: true, message: 'Da danh dau cho Bot dang Page' };
     }
 
-    // Target 'all' vẫn dùng Graph API cho Page (chỉ chạy nếu đã cấu hình FACEBOOK token)
+    // Target 'all' vẫn dùng Graph API cho Page (dùng token của Page đích nếu có)
     if (postTarget === 'all') {
-      const fbRes = await postToFacebook(finalContent, finalHashtags, imgUrl, scheduledTime);
+      let creds: { pageGraphId: string; token: string } | undefined;
+      if (targetPageId) {
+        const [pg] = await sql`SELECT page_id, access_token_enc FROM facebook_pages WHERE id = ${targetPageId}`;
+        if (pg?.page_id && pg?.access_token_enc) {
+          try { creds = { pageGraphId: pg.page_id, token: decrypt(pg.access_token_enc) }; } catch { /* rơi về env */ }
+        }
+      }
+      const fbRes = await postToFacebook(finalContent, finalHashtags, imgUrl, scheduledTime, creds);
       if (fbRes.id) {
         results.page = { success: true, id: fbRes.post_id || fbRes.id };
         await sql`UPDATE posts SET status = 'posted', facebook_post_id = ${fbRes.post_id || fbRes.id} WHERE id = ${postId}`;

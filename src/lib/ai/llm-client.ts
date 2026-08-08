@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
+import { getConfig } from '@/lib/config-store';
 
 interface ChatCompletionParams {
   system: string;
@@ -8,12 +9,13 @@ interface ChatCompletionParams {
   temperature?: number;
 }
 
-const provider = process.env.LLM_PROVIDER || 'openai';
-
 export async function chatCompletion({ system, userMessage, maxTokens = 2048, temperature = 0.7 }: ChatCompletionParams): Promise<string> {
+  const provider = (await getConfig('LLM_PROVIDER')) || 'openai';
+  const apiKey = await getConfig('LLM_API_KEY');
+
   if (provider === 'anthropic') {
-    const client = new Anthropic({ apiKey: process.env.LLM_API_KEY });
-    const model = process.env.LLM_MODEL || 'claude-sonnet-4-20250514';
+    const client = new Anthropic({ apiKey });
+    const model = (await getConfig('LLM_MODEL')) || 'claude-sonnet-4-20250514';
     const res = await client.messages.create({
       model,
       max_tokens: maxTokens,
@@ -26,10 +28,10 @@ export async function chatCompletion({ system, userMessage, maxTokens = 2048, te
   }
 
   const client = new OpenAI({
-    apiKey: process.env.LLM_API_KEY,
-    baseURL: process.env.LLM_BASE_URL || 'https://api.openai.com/v1',
+    apiKey,
+    baseURL: (await getConfig('LLM_BASE_URL')) || 'https://api.openai.com/v1',
   });
-  const model = process.env.LLM_MODEL || 'gpt-4o';
+  const model = (await getConfig('LLM_MODEL')) || 'gpt-4o';
   const res = await client.chat.completions.create({
     model,
     max_tokens: maxTokens,

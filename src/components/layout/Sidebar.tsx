@@ -7,6 +7,19 @@ import { usePathname } from 'next/navigation';
 export function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [me, setMe] = useState<{ name: string; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(d => { if (d.success) setMe(d.user); }).catch(() => {});
+  }, [pathname]);
+
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
+
+  // Trang đăng nhập: KHÔNG hiện sidebar (chưa đăng nhập không thấy hệ thống có gì).
+  if (pathname === '/login') return null;
 
   useEffect(() => {
     setOpen(false);
@@ -49,7 +62,51 @@ export function Sidebar() {
             <span className="sidebar-icon">⚡</span>
             Pipeline
           </Link>
+          <Link href="/dashboard" className={`sidebar-link ${pathname === '/dashboard' ? 'active' : ''}`}>
+            <span className="sidebar-icon">📊</span>
+            Dashboard
+          </Link>
+
+          <div className="sidebar-section-label">Quản lý</div>
+          <Link href="/manage/sources" className={`sidebar-link ${pathname === '/manage/sources' ? 'active' : ''}`}>
+            <span className="sidebar-icon">📰</span>
+            Nguồn tin
+          </Link>
+          <Link href="/manage/groups" className={`sidebar-link ${pathname === '/manage/groups' ? 'active' : ''}`}>
+            <span className="sidebar-icon">👥</span>
+            Nhóm
+          </Link>
+          <Link href="/manage/pages" className={`sidebar-link ${pathname === '/manage/pages' ? 'active' : ''}`}>
+            <span className="sidebar-icon">📄</span>
+            Page
+          </Link>
+          <Link href="/manage/settings" className={`sidebar-link ${pathname === '/manage/settings' ? 'active' : ''}`}>
+            <span className="sidebar-icon">⚙️</span>
+            Cài đặt
+          </Link>
+          {me?.role === 'admin' && (
+            <Link href="/manage/users" className={`sidebar-link ${pathname === '/manage/users' ? 'active' : ''}`}>
+              <span className="sidebar-icon">👤</span>
+              Quản lý User
+            </Link>
+          )}
+
+          <div className="sidebar-section-label">Tài khoản</div>
+          <Link href="/profile" className={`sidebar-link ${pathname === '/profile' ? 'active' : ''}`}>
+            <span className="sidebar-icon">🙍</span>
+            Hồ sơ
+          </Link>
         </nav>
+
+        {me && (
+          <div className="sidebar-user">
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{me.name}</div>
+              <div className="sidebar-user-role">{me.email} · {me.role}</div>
+            </div>
+            <button className="sidebar-logout" onClick={logout}>Đăng xuất</button>
+          </div>
+        )}
       </aside>
     </>
   );

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Post, PostTarget, ImageType, PublishPayload } from '@/types';
+import type { Post, PostTarget, ImageType, PublishPayload, PublishTarget } from '@/types';
 import { MIN_SCHEDULE_AHEAD_MINUTES } from '@/lib/constants';
 
 export function usePosts() {
@@ -53,9 +53,16 @@ export function usePosts() {
     scheduleStart: string,
     scheduleInterval: number,
     createVideo: boolean,
+    target?: PublishTarget,
   ) => {
     if (selectedPosts.size === 0) {
       alert('Vui lòng chọn ít nhất 1 bài để đăng!');
+      return;
+    }
+
+    // Với đích Page/Nhóm/Tất cả cần chọn Page đích (bot đăng theo Page đó).
+    if ((postTarget === 'page' || postTarget === 'groups' || postTarget === 'all') && !target?.pageId) {
+      alert('Vui lòng chọn Page đích ở phần "Đích đăng"!');
       return;
     }
 
@@ -88,6 +95,8 @@ export function usePosts() {
         createVideo: postTarget === 'reels' ? true : createVideo,
         overrideContent: editedContent[id] ?? undefined,
         overrideHashtags: editedHashtags[id] ?? undefined,
+        targetPageId: target?.pageId,
+        targetGroupIds: target?.groupIds,
       };
 
       if ((postTarget === 'page' || postTarget === 'all' || postTarget === 'reels') && currentScheduleTime > 0) {

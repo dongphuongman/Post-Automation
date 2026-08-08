@@ -5,9 +5,10 @@ export async function postToFacebook(
   hashtags: string,
   imageUrl: string | null,
   scheduledTime?: number,
+  creds?: { pageGraphId: string; token: string },
 ) {
-  const pageId = process.env.FACEBOOK_PAGE_ID;
-  const token = process.env.FACEBOOK_ACCESS_TOKEN;
+  const pageId = creds?.pageGraphId || process.env.FACEBOOK_PAGE_ID;
+  const token = creds?.token || process.env.FACEBOOK_ACCESS_TOKEN;
   if (!pageId || !token) throw new Error('Missing FB credentials');
 
   const message = `${content}\n\n${hashtags}`;
