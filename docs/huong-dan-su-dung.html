@@ -491,6 +491,7 @@
         <li><a href="#install">Cài đặt</a></li>
         <li><a href="#env">Cấu hình biến môi trường</a></li>
         <li><a href="#run">Chạy ứng dụng</a></li>
+        <li><a href="#auth">Đăng nhập &amp; Quản trị</a></li>
         <li><a href="#step1">Bước 1 — Thu thập tin</a></li>
         <li><a href="#step2">Bước 2 — Chọn &amp; Định dạng</a></li>
         <li><a href="#step3">Bước 3 — Duyệt &amp; Đăng bài</a></li>
@@ -531,8 +532,9 @@
           <thead><tr><th>Thành phần</th><th>Công nghệ</th><th>Vai trò</th></tr></thead>
           <tbody>
             <tr><td>Web App</td><td>Next.js 16, React 18, TypeScript</td><td>Giao diện quản lý pipeline</td></tr>
-            <tr><td>Viết bài</td><td>Anthropic Claude (claude-opus-4-5)</td><td>Viết nội dung Facebook tiếng Việt</td></tr>
-            <tr><td>Tạo ảnh</td><td>OpenAI DALL-E 3</td><td>Tạo ảnh minh họa 1024&times;1024</td></tr>
+            <tr><td>Xác thực</td><td>Đăng nhập đa người dùng (scrypt + session HMAC)</td><td>Phân quyền admin/user, mã hóa secret AES-256-GCM</td></tr>
+            <tr><td>Viết bài</td><td>Đa provider: OpenAI, Anthropic, Groq, Together, Ollama</td><td>Viết nội dung Facebook tiếng Việt</td></tr>
+            <tr><td>Tạo ảnh</td><td>OpenAI DALL-E 3 (hoặc tương thích)</td><td>Tạo ảnh minh họa 1024&times;1024</td></tr>
             <tr><td>Video</td><td>Remotion + OpenAI TTS</td><td>Tạo video Reels với voiceover</td></tr>
             <tr><td>Database</td><td>Neon Postgres (serverless)</td><td>Lưu trữ dữ liệu</td></tr>
             <tr><td>Facebook</td><td>Graph API v21.0 + Playwright</td><td>Đăng bài Page, Groups, Reels</td></tr>
@@ -577,23 +579,29 @@
       <h2><span class="num">04</span> Cấu hình biến môi trường</h2>
       <p>Tạo file <code>.env.local</code> ở thư mục gốc với các biến sau:</p>
 
-      <h3>Database</h3>
+      <h3>Bắt buộc</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Biến</th><th>Mô tả</th><th>Ví dụ</th></tr></thead>
           <tbody>
             <tr><td><code>POSTGRES_URL</code></td><td>Connection string Neon Postgres</td><td><code>postgresql://user:pass@host/db</code></td></tr>
+            <tr><td><code>APP_ENCRYPTION_KEY</code></td><td>Khóa mã hóa secret trong DB + ký session. <strong>Giữ cố định</strong></td><td><code>openssl rand -hex 32</code></td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3>API AI</h3>
+      <h3>LLM viết bài</h3>
+      <p>Có thể đặt trong <code>.env</code> hoặc cấu hình ở <code>/manage/settings</code> (lưu mã hóa trong DB).</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Biến</th><th>Dịch vụ</th><th>Dùng cho</th></tr></thead>
+          <thead><tr><th>Biến</th><th>Mô tả</th><th>Ví dụ</th></tr></thead>
           <tbody>
-            <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Anthropic</td><td>Claude viết bài tiếng Việt</td></tr>
-            <tr><td><code>OPENAI_API_KEY</code></td><td>OpenAI</td><td>DALL-E tạo ảnh, TTS giọng đọc, GPT spin nội dung</td></tr>
+            <tr><td><code>LLM_PROVIDER</code></td><td><code>openai</code> (mặc định) hoặc <code>anthropic</code></td><td><code>openai</code></td></tr>
+            <tr><td><code>LLM_API_KEY</code></td><td>API key của nhà cung cấp LLM</td><td><code>sk-...</code></td></tr>
+            <tr><td><code>LLM_BASE_URL</code></td><td>Endpoint OpenAI-compatible (bỏ trống nếu dùng Anthropic)</td><td><code>https://api.openai.com/v1</code></td></tr>
+            <tr><td><code>LLM_MODEL</code></td><td>Model viết bài</td><td><code>gpt-4o</code> / <code>claude-sonnet-4-20250514</code></td></tr>
+            <tr><td><code>OPENAI_API_KEY</code></td><td>DALL-E tạo ảnh &amp; TTS giọng đọc video (OpenAI)</td><td><code>sk-...</code></td></tr>
+            <tr><td><code>IMAGE_*</code>, <code>GEMINI_*</code></td><td>Tùy chọn: cấu hình riêng sinh ảnh; Gemini fallback trích xuất video</td><td>—</td></tr>
           </tbody>
         </table>
       </div>
@@ -616,8 +624,13 @@
           <tbody>
             <tr><td><code>FACEBOOK_PAGE_ID</code></td><td>ID của Facebook Page (tìm trong Page Settings)</td></tr>
             <tr><td><code>FACEBOOK_ACCESS_TOKEN</code></td><td>Page Access Token (long-lived, có quyền <code>pages_manage_posts</code>)</td></tr>
+            <tr><td><code>FACEBOOK_USER_TOKEN</code></td><td>User token (dùng cho một số thao tác Reels/video)</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="callout callout">
+        <span class="callout-label">Khuyến nghị</span>
+        Thay vì đặt <code>FACEBOOK_*</code> trong <code>.env</code>, nên cấu hình từng Page (token + cookie) tại <code>/manage/pages</code> — được lưu mã hóa trong DB và hỗ trợ nhiều Page.
       </div>
 
       <div class="callout-warn callout">
@@ -643,7 +656,8 @@
           <thead><tr><th>Lệnh</th><th>Mô tả</th></tr></thead>
           <tbody>
             <tr><td><code>npm run lint</code></td><td>Kiểm tra code style</td></tr>
-            <tr><td><code>cd bot && npm run post</code></td><td>Chạy bot đăng nhóm</td></tr>
+            <tr><td><code>cd bot && npm run login</code></td><td>Đăng nhập Facebook cho bot (lưu vào <code>bot/fb-profile/</code>)</td></tr>
+            <tr><td><code>cd bot && npm run post</code></td><td>Chạy bot daemon đăng nhóm (loop mỗi 60s)</td></tr>
             <tr><td><code>cd bot && npm run check-db</code></td><td>Xem 5 bài viết gần nhất trong DB</td></tr>
             <tr><td><code>cd bot && npm run fix-db</code></td><td>Sửa bài viết bị kẹt trạng thái</td></tr>
             <tr><td><code>cd bot && npm run flush</code></td><td>Xóa toàn bộ dữ liệu</td></tr>
@@ -652,8 +666,38 @@
       </div>
     </section>
 
+    <section class="section" id="auth">
+      <h2><span class="num">06</span> Đăng nhập &amp; Quản trị</h2>
+      <p>Hệ thống có xác thực đa người dùng. Khi mở lần đầu, database seed sẵn một tài khoản admin:</p>
+      <pre><code>Email:    admin@local
+Password: admin123</code></pre>
+      <div class="callout-warn callout">
+        <span class="callout-label">Bảo mật</span>
+        Đổi mật khẩu ngay tại <code>/profile</code> sau lần đăng nhập đầu tiên. Mỗi người dùng chỉ thấy dữ liệu của mình; tài khoản <code>admin</code> thấy tất cả.
+      </div>
+
+      <h3>Trang quản trị (<code>/manage/*</code>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Trang</th><th>Chức năng</th></tr></thead>
+          <tbody>
+            <tr><td><code>/manage/sources</code></td><td>Quản lý nguồn thu thập tin (RSS / social)</td></tr>
+            <tr><td><code>/manage/pages</code></td><td>Quản lý Facebook Page — lưu access token &amp; cookie (mã hóa)</td></tr>
+            <tr><td><code>/manage/groups</code></td><td>Quản lý Facebook Group gắn với Page</td></tr>
+            <tr><td><code>/manage/settings</code></td><td>Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — <strong>chỉ admin</strong></td></tr>
+            <tr><td><code>/manage/users</code></td><td>Quản lý người dùng &amp; phân quyền — <strong>chỉ admin</strong></td></tr>
+            <tr><td><code>/dashboard</code></td><td>Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Tiện lợi</span>
+        Cấu hình khóa LLM, Facebook Page/Group ngay trong giao diện <code>/manage/*</code> — secret được lưu <strong>mã hóa</strong> trong DB, không cần sửa <code>.env</code> hay khởi động lại.
+      </div>
+    </section>
+
     <section class="section" id="step1">
-      <h2><span class="num">06</span> Bước 1 — Thu thập tin</h2>
+      <h2><span class="num">07</span> Bước 1 — Thu thập tin</h2>
       <p>Đây là bước đầu tiên trong pipeline. Hệ thống sẽ cào tin tức từ nhiều nguồn và lưu vào database.</p>
 
       <h3>Chọn nguồn cào</h3>
@@ -684,7 +728,7 @@
     </section>
 
     <section class="section" id="step2">
-      <h2><span class="num">07</span> Bước 2 — Chọn &amp; Định dạng</h2>
+      <h2><span class="num">08</span> Bước 2 — Chọn &amp; Định dạng</h2>
       <p>Ở bước này, bạn chọn các bài tin muốn viết lại và chọn định dạng cho từng bài.</p>
 
       <h3>Hai định dạng bài viết</h3>
@@ -711,7 +755,7 @@
     </section>
 
     <section class="section" id="step3">
-      <h2><span class="num">08</span> Bước 3 — Duyệt &amp; Đăng bài</h2>
+      <h2><span class="num">09</span> Bước 3 — Duyệt &amp; Đăng bài</h2>
       <p>Bước cuối cùng — duyệt lại nội dung, chỉnh sửa nếu cần, và chọn cách đăng.</p>
 
       <h3>Cài đặt lịch đăng</h3>
@@ -747,15 +791,28 @@
       </div>
 
       <h3>Vòng đời trạng thái bài viết</h3>
+      <p>Web app đặt bài vào hàng đợi; bot nhặt theo trạng thái. Luồng đăng Page và đăng Group tách riêng:</p>
       <div class="flow">
         <span class="flow-node">draft</span>
         <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">ready_for_page</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">page_posting</span>
+        <span class="flow-arrow">&rarr;</span>
         <span class="flow-node">posted</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(đăng Page — Graph API)</span>
+      </div>
+      <div class="flow">
+        <span class="flow-node">draft</span>
         <span class="flow-arrow">&rarr;</span>
         <span class="flow-node">ready_for_groups</span>
         <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">groups_posting</span>
+        <span class="flow-arrow">&rarr;</span>
         <span class="flow-node">groups_posted</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(đăng Group — bot Playwright)</span>
       </div>
+      <p>Video Reels đi theo cột riêng <code>video_status</code>: <code>none &rarr; pending &rarr; completed</code> (hoặc <code>error</code>), bật bằng cờ <code>create_video</code>. Nếu bot gặp lỗi, bài được trả về trạng thái <code>ready_*</code> để thử lại.</p>
 
       <h3>Lịch sử đăng bài</h3>
       <p>Phần <strong>Lịch sử</strong> phía dưới hiển thị các bài đã đăng/đang xử lý với trạng thái tương ứng:</p>
@@ -769,49 +826,40 @@
     </section>
 
     <section class="section" id="bot">
-      <h2><span class="num">09</span> Bot đăng nhóm Facebook</h2>
+      <h2><span class="num">10</span> Bot đăng nhóm Facebook</h2>
       <p>Bot là tiến trình chạy nền, tự động kiểm tra database mỗi 60 giây để xử lý các bài cần đăng nhóm hoặc tạo video.</p>
 
-      <h3>Chuẩn bị cookies</h3>
-      <p>Bot sử dụng Playwright (trình duyệt tự động) với cookies Facebook đã lưu:</p>
-      <ol>
-        <li>Cài extension <strong>Cookie-Editor</strong> trên Chrome</li>
-        <li>Đăng nhập Facebook trên trình duyệt</li>
-        <li>Mở Cookie-Editor, nhấn <strong>Export</strong> (định dạng JSON)</li>
-        <li>Lưu nội dung vào file <code>bot/cookies.json</code></li>
-      </ol>
+      <h3>Đăng nhập Facebook cho bot</h3>
+      <p>Bot đăng bài dưới danh nghĩa Page bằng phiên đăng nhập Facebook. Cách khuyến nghị là dùng profile Chromium cố định:</p>
+<pre><code><span class="cmd">cd bot</span>
+<span class="cmd">npm run login</span></code></pre>
+      <p>Lệnh này mở cửa sổ Chromium (không headless) dùng chung profile tại <code>bot/fb-profile/</code>. Bạn đăng nhập Facebook thủ công (qua mọi bước xác minh), rồi đóng cửa sổ — phiên được lưu lại để bot dùng.</p>
+      <p>Bot lấy cookie/token theo thứ tự ưu tiên: <strong>(1)</strong> cookie đã lưu của Page trong DB (cấu hình ở <code>/manage/pages</code>, mã hóa AES-256-GCM) → <strong>(2)</strong> file <code>bot/cookies.json</code> nếu có → <strong>(3)</strong> profile <code>bot/fb-profile/</code>.</p>
 
       <div class="callout-danger callout">
         <span class="callout-label">Bảo mật</span>
-        File <code>cookies.json</code> chứa phiên đăng nhập Facebook. Không chia sẻ hoặc commit file này. Cookies có thể hết hạn sau vài tuần — cần export lại khi bot không đăng được.
+        Cookie/token Facebook là phiên đăng nhập nhạy cảm. Không commit <code>bot/cookies.json</code> hay <code>bot/fb-profile/</code>. Không chạy <code>npm run login</code> khi bot đang chạy (dùng chung profile). Bot cần cùng <code>APP_ENCRYPTION_KEY</code> với web app để giải mã cookie Page.
       </div>
 
       <h3>Cấu hình nhóm</h3>
-      <p>Danh sách nhóm Facebook được cấu hình tại <code>bot/lib/config.js</code>:</p>
-<pre><code>GROUPS: [
-  'comailo',
-  'groupaivietnam',
-  'openclawxvn',
-  '861108920047086',
-]</code></pre>
-      <p>Thêm hoặc bớt slug/ID nhóm trong mảng này. <code>PAGE_NAME</code> là tên Facebook Page sẽ đăng bài dưới danh tính Page (không phải tài khoản cá nhân).</p>
+      <p>Danh sách nhóm đích được quản lý trong giao diện <code>/manage/groups</code> (gắn với từng Page). Khi đăng ở Bước 3, bạn chọn Page/Group đích và bot đọc <code>target_group_ids</code> của bài để lấy URL nhóm (đã lọc nhóm đang bật). Mảng <code>GROUPS</code> tĩnh trong <code>bot/lib/config.js</code> chỉ còn là phương án dự phòng khi bài không gắn nhóm nào.</p>
 
       <h3>Chạy bot</h3>
 <pre><code><span class="cmd">cd bot</span>
-<span class="cmd">node post-groups.js</span></code></pre>
+<span class="cmd">npm run post</span></code></pre>
       <p>Bot sẽ:</p>
       <ol>
-        <li>Tìm bài có trạng thái <code>ready_for_groups</code></li>
-        <li>Dùng GPT spin lại nội dung ~30% (tránh Facebook đánh trùng)</li>
+        <li>Tìm bài có trạng thái <code>ready_for_groups</code> đã đến hạn <code>scheduled_time</code></li>
+        <li>Claim bài (đặt <code>groups_posting</code>) để tránh trùng lặp giữa nhiều lần chạy</li>
         <li>Mở Chromium, đăng bài vào từng nhóm bằng Playwright</li>
-        <li>Chuyển trạng thái sang <code>groups_posted</code></li>
+        <li>Chuyển trạng thái sang <code>groups_posted</code> (lỗi thì trả về <code>ready_for_groups</code>)</li>
         <li>Kiểm tra và xử lý video nếu có bài cần tạo Reels</li>
         <li>Lặp lại mỗi 60 giây</li>
       </ol>
     </section>
 
     <section class="section" id="video">
-      <h2><span class="num">10</span> Video Maker (Reels)</h2>
+      <h2><span class="num">11</span> Video Maker (Reels)</h2>
       <p>Hệ thống tạo video Reels tự động từ nội dung bài viết, sử dụng Remotion để render và OpenAI TTS cho giọng đọc.</p>
 
       <h3>Quy trình tạo video</h3>
@@ -842,7 +890,7 @@
     </section>
 
     <section class="section" id="db">
-      <h2><span class="num">11</span> Quản lý cơ sở dữ liệu</h2>
+      <h2><span class="num">12</span> Quản lý cơ sở dữ liệu</h2>
 
       <h3>Khởi tạo tự động</h3>
       <p>Database tự động tạo bảng và seed dữ liệu nguồn RSS khi API được gọi lần đầu. Không cần chạy migration thủ công.</p>
@@ -850,11 +898,15 @@
       <h3>Cấu trúc bảng</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Bảng</th><th>Mô tả</th><th>Số cột</th></tr></thead>
+          <thead><tr><th>Bảng</th><th>Mô tả</th></tr></thead>
           <tbody>
-            <tr><td><code>sources</code></td><td>Nguồn tin (RSS feeds, social accounts)</td><td>7</td></tr>
-            <tr><td><code>articles</code></td><td>Bài tin đã cào (tiêu đề, URL, tóm tắt, ảnh)</td><td>10</td></tr>
-            <tr><td><code>posts</code></td><td>Bài viết AI tạo (nội dung, ảnh, trạng thái đăng)</td><td>14</td></tr>
+            <tr><td><code>sources</code></td><td>Nguồn tin (RSS feeds, social accounts)</td></tr>
+            <tr><td><code>articles</code></td><td>Bài tin đã cào (tiêu đề, URL, tóm tắt, ảnh)</td></tr>
+            <tr><td><code>posts</code></td><td>Bài viết AI tạo (nội dung, ảnh, trạng thái đăng, video)</td></tr>
+            <tr><td><code>facebook_pages</code></td><td>Facebook Page + token/cookie mã hóa</td></tr>
+            <tr><td><code>facebook_groups</code></td><td>Facebook Group gắn với Page</td></tr>
+            <tr><td><code>app_config</code></td><td>Cấu hình &amp; secret hệ thống (mã hóa) từ <code>/manage/settings</code></td></tr>
+            <tr><td><code>users</code></td><td>Người dùng, mật khẩu băm, phân quyền (admin/user)</td></tr>
           </tbody>
         </table>
       </div>
@@ -878,20 +930,25 @@
     </section>
 
     <section class="section" id="troubleshoot">
-      <h2><span class="num">12</span> Xử lý lỗi thường gặp</h2>
+      <h2><span class="num">13</span> Xử lý lỗi thường gặp</h2>
 
       <h4>Lỗi kết nối mạng khi cào dữ liệu</h4>
       <p>Kiểm tra kết nối internet và đảm bảo <code>RAPID_API_KEY</code> / <code>BRAVE_API_KEY</code> còn hiệu lực. RapidAPI có giới hạn request/tháng theo gói đăng ký.</p>
 
+      <h4>Không đăng nhập được / bị đăng xuất liên tục</h4>
+      <p>Thường do <code>APP_ENCRYPTION_KEY</code> chưa đặt hoặc bị đổi (session cũ vô hiệu, secret không giải mã được). Đặt key và <strong>giữ cố định</strong>. Quên mật khẩu admin? Xóa hàng trong bảng <code>users</code> để <code>initDb()</code> seed lại <code>admin@local</code> / <code>admin123</code>.</p>
+
       <h4>Lỗi từ AI khi viết bài</h4>
-      <p>Kiểm tra <code>ANTHROPIC_API_KEY</code> còn credit. Nếu lỗi timeout, thử lại — Claude đôi khi mất 20–30 giây cho bài dài.</p>
+      <p>Kiểm tra <code>LLM_API_KEY</code>, <code>LLM_MODEL</code>, <code>LLM_BASE_URL</code> (trong <code>.env</code> hoặc <code>/manage/settings</code>) còn hợp lệ &amp; còn credit. Nếu lỗi timeout, thử lại — model đôi khi mất 20–30 giây cho bài dài.</p>
 
       <h4>Ảnh DALL-E không tạo được</h4>
       <p>OpenAI có thể từ chối tạo ảnh nếu nội dung bị đánh giá nhạy cảm. Bài viết vẫn được lưu, chỉ thiếu ảnh AI — chọn ảnh gốc khi đăng.</p>
 
       <h4>Bot không đăng được nhóm</h4>
       <ul>
-        <li>Cookies hết hạn — export lại từ Cookie-Editor</li>
+        <li>Phiên đăng nhập hết hạn — chạy lại <code>npm run login</code> (hoặc cập nhật cookie Page ở <code>/manage/pages</code>)</li>
+        <li>Bot dùng khác DB / khác <code>APP_ENCRYPTION_KEY</code> so với web app — không giải mã được cookie Page</li>
+        <li>Bài chưa ở trạng thái <code>ready_for_groups</code> hoặc <code>scheduled_time</code> chưa đến hạn</li>
         <li>Facebook đổi giao diện composer — cần cập nhật selector trong bot</li>
         <li>Bị giới hạn đăng bài (rate limit) — đợi vài giờ</li>
       </ul>

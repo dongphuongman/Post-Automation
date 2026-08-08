@@ -553,16 +553,31 @@ npm run lint       # Kiểm tra lint</code></pre>
       <h2><span class="num">3</span> Khởi tạo Database</h2>
       <div class="callout">
         <span class="callout-label">Không cần migration thủ công</span>
-        Database tự khởi tạo khi ứng dụng gọi API <code>research</code> hoặc <code>stats</code> (ví dụ: lần đầu mở trang chính hoặc bấm "Thu thập tin").
+        Database tự khởi tạo ở lần gọi API đầu tiên (mở trang chính hoặc đăng nhập).
       </div>
       <ul>
-        <li>Hàm <code>initDb()</code> tự động tạo 3 bảng: <code>sources</code>, <code>articles</code>, <code>posts</code>.</li>
+        <li>Hàm <code>initDb()</code> tự động tạo <strong>7 bảng</strong>: <code>sources</code>, <code>articles</code>, <code>posts</code>, <code>facebook_pages</code>, <code>facebook_groups</code>, <code>app_config</code> (lưu secret mã hóa), <code>users</code>.</li>
+        <li><code>initDb()</code> cũng <strong>seed sẵn một tài khoản admin</strong> (xem Mục 3.1).</li>
         <li>Hàm <code>seedDb()</code> tự động thêm sẵn 6 nguồn RSS mặc định (TechCrunch, NFX, Indie Hackers, a16z, Crunchbase News, TechStartups).</li>
       </ul>
       <p>Bạn chỉ cần đảm bảo biến <code>POSTGRES_URL</code> trong <code>.env.local</code> trỏ đúng tới database Neon còn hoạt động.</p>
       <div class="callout">
         <span class="callout-label">Lấy connection string</span>
         Đăng nhập <a href="https://console.neon.tech" target="_blank" rel="noopener">Neon Console</a> → tạo project → copy chuỗi kết nối dạng <code>postgresql://user:password@host/dbname</code> vào biến <code>POSTGRES_URL</code>.
+      </div>
+
+      <h3>3.1. Đăng nhập lần đầu &amp; tài khoản admin</h3>
+      <p>Hệ thống có xác thực đa người dùng. Tài khoản admin được seed tự động:</p>
+      <pre><code>Email:    admin@local
+Password: admin123</code></pre>
+      <ul>
+        <li>⚠️ <strong>Đổi mật khẩu ngay</strong> sau khi đăng nhập tại trang <code>/profile</code>.</li>
+        <li>Tạo thêm người dùng, phân quyền (<code>admin</code> / <code>user</code>) tại <code>/manage/users</code> (chỉ admin).</li>
+        <li>Mỗi người dùng chỉ thấy dữ liệu của mình (<code>owner_id</code>); admin thấy tất cả.</li>
+      </ul>
+      <div class="callout callout-warn">
+        <span class="callout-label">Cần khóa mã hóa</span>
+        Đăng nhập yêu cầu biến <code>APP_ENCRYPTION_KEY</code> đã được đặt (dùng để ký session) — xem <a href="#env">Mục 4</a>.
       </div>
     </section>
 
@@ -574,13 +589,21 @@ npm run lint       # Kiểm tra lint</code></pre>
       <pre><code># Database — Neon Postgres (bắt buộc)
 POSTGRES_URL=postgresql://user:password@host/dbname
 
+# Khóa mã hóa (BẮT BUỘC) — mã hóa secret trong DB (AES-256-GCM) + ký session đăng nhập
+# Sinh 1 lần rồi GIỮ CỐ ĐỊNH:  openssl rand -hex 32
+APP_ENCRYPTION_KEY=
+
 # Nhà cung cấp LLM: "openai" (mặc định) hoặc "anthropic"
 LLM_PROVIDER=openai
 
-# Cấu hình LLM (bắt buộc để viết bài bằng AI)
+# Cấu hình LLM (bắt buộc để viết bài — có thể đặt ở /manage/settings thay vì đây)
 LLM_BASE_URL=https://api.openai.com/v1     # Bỏ trống nếu dùng Anthropic
 LLM_API_KEY=sk-...
 LLM_MODEL=gpt-4o</code></pre>
+      <div class="callout">
+        <span class="callout-label">Mẹo</span>
+        Phần lớn secret (LLM, image, Facebook, scraping) có thể cấu hình ngay trong giao diện <code>/manage/settings</code> — được lưu <strong>mã hóa</strong> trong DB (bảng <code>app_config</code>). Khi đó <code>.env</code> chỉ cần <code>POSTGRES_URL</code> và <code>APP_ENCRYPTION_KEY</code>; các biến còn lại chỉ là phương án dự phòng.
+      </div>
 
       <h3>4.2. Tùy chọn</h3>
       <pre><code># Sinh ảnh minh họa — mặc định dùng LLM_API_KEY nếu không set riêng
@@ -612,6 +635,7 @@ FACEBOOK_USER_TOKEN=</code></pre>
           </thead>
           <tbody>
             <tr><td><code>POSTGRES_URL</code></td><td class="center">✅</td><td>Chuỗi kết nối Neon Postgres</td></tr>
+            <tr><td><code>APP_ENCRYPTION_KEY</code></td><td class="center">✅</td><td>Khóa mã hóa secret trong DB + ký session. <strong>Giữ cố định</strong> — đổi = hỏng hết secret &amp; session</td></tr>
             <tr><td><code>LLM_PROVIDER</code></td><td class="center">✅</td><td><code>openai</code> (mặc định) hoặc <code>anthropic</code></td></tr>
             <tr><td><code>LLM_API_KEY</code></td><td class="center">✅</td><td>API key của nhà cung cấp LLM</td></tr>
             <tr><td><code>LLM_BASE_URL</code></td><td class="center">⚠️</td><td>Bắt buộc với OpenAI-compatible; <strong>không cần</strong> với Anthropic</td></tr>
@@ -664,11 +688,22 @@ LLM_MODEL=claude-sonnet-4-20250514</code></pre>
     <!-- 6 -->
     <section class="section" id="bot">
       <h2><span class="num">6</span> Bot đăng Facebook Groups <span style="font-size:13px;color:var(--text-muted);font-weight:600;">(tùy chọn)</span></h2>
-      <p>Bot dùng Playwright để đăng bài vào Facebook Groups dưới danh nghĩa Page.</p>
+      <p>Bot là một <strong>tiến trình daemon chạy nền</strong> dùng Playwright để đăng bài vào Facebook Groups dưới danh nghĩa Page, đồng thời render &amp; đăng video Reels. Nó poll database mỗi <strong>60 giây</strong>, nhặt các bài theo trạng thái trong hàng đợi.</p>
       <pre><code>cd bot
 npm install
 npm run install-browser      # Cài trình duyệt Chromium cho Playwright</code></pre>
-      <p>Bot dùng chung database với web app, nên cần biến <code>POSTGRES_URL</code> (đặt trong file <code>.env</code> của thư mục <code>bot/</code> hoặc biến môi trường hệ thống — bot nạp qua <code>dotenv</code>).</p>
+      <p>Bot dùng chung database với web app — chấp nhận <code>DATABASE_URL</code> <strong>hoặc</strong> <code>POSTGRES_URL</code> (đặt trong file <code>.env</code> của thư mục <code>bot/</code> hoặc biến môi trường hệ thống — bot nạp qua <code>dotenv</code>). Bot dùng chung <code>APP_ENCRYPTION_KEY</code> để giải mã cookie/token Page đã lưu, nên key này <strong>phải giống hệt</strong> web app.</p>
+
+      <h4>Đăng nhập Facebook (chạy một lần trước khi bot làm việc)</h4>
+      <pre><code>npm run login        # Mở Chromium (không headless) → tự đăng nhập Facebook thủ công</code></pre>
+      <p>Cửa sổ Chromium mở ra profile cố định tại <code>bot/fb-profile/</code>. Đăng nhập Facebook (qua mọi bước xác minh), rồi đóng cửa sổ — phiên đăng nhập được lưu lại để bot chạy dưới danh nghĩa tài khoản đó.</p>
+      <div class="callout callout-warn">
+        <span class="callout-label">Lưu ý</span>
+        Không chạy <code>login</code> khi bot đang chạy: cả hai dùng chung một profile.
+      </div>
+
+      <h4>Cơ chế hàng đợi</h4>
+      <p>Web app đặt bài sang trạng thái <code>ready_for_page</code> / <code>ready_for_groups</code> (kèm <code>scheduled_time</code>), bot nhặt và chuyển tiếp <code>page_posting → posted</code> hoặc <code>groups_posting → groups_posted</code>; nếu lỗi sẽ trả về trạng thái <code>ready_*</code> để thử lại. Video Reels đi theo cột <code>video_status</code>: <code>pending → completed</code>.</p>
 
       <h4>Các lệnh có sẵn</h4>
       <div class="table-wrap">
@@ -677,7 +712,8 @@ npm run install-browser      # Cài trình duyệt Chromium cho Playwright</code
             <tr><th>Lệnh</th><th>Chức năng</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>npm run post</code></td><td>Chạy bot đăng bài (<code>node post-groups.js</code>)</td></tr>
+            <tr><td><code>npm run post</code></td><td>Chạy bot daemon (<code>node post-groups.js</code>) — loop mỗi 60s</td></tr>
+            <tr><td><code>npm run login</code></td><td>Đăng nhập Facebook thủ công (lưu vào <code>bot/fb-profile/</code>)</td></tr>
             <tr><td><code>npm run check-db</code></td><td>Kiểm tra 5 bài đăng gần nhất trong DB</td></tr>
             <tr><td><code>npm run fix-db</code></td><td>Sửa/đồng bộ schema DB</td></tr>
             <tr><td><code>npm run flush</code></td><td>Xóa dữ liệu (dùng thận trọng)</td></tr>
@@ -706,7 +742,7 @@ npm run build         # Render video ra out/video.mp4</code></pre>
     <!-- 8 -->
     <section class="section" id="usage">
       <h2><span class="num">8</span> Quy trình sử dụng</h2>
-      <p>Sau khi chạy <code>npm run dev</code> và mở <strong>http://localhost:3000</strong>:</p>
+      <p>Sau khi chạy <code>npm run dev</code> và mở <strong>http://localhost:3000</strong>, <strong>đăng nhập</strong> bằng <code>admin@local</code> / <code>admin123</code> (đổi mật khẩu ngay ở <code>/profile</code>), rồi làm theo 3 bước:</p>
       <div class="pipeline-steps">
         <div class="p-step">
           <div class="p-step-num">1</div>
@@ -721,7 +757,7 @@ npm run build         # Render video ra out/video.mp4</code></pre>
         <div class="p-step">
           <div class="p-step-num">3</div>
           <div class="p-step-title">Duyệt &amp; Đăng</div>
-          <div class="p-step-desc">Đăng Facebook Page/Group (ngay hoặc hẹn lịch), kèm video Reels.</div>
+          <div class="p-step-desc">Đăng Facebook Page/Group/Reels (ngay hoặc hẹn lịch), kèm video Reels.</div>
         </div>
       </div>
       <div class="flow">
@@ -732,6 +768,27 @@ npm run build         # Render video ra out/video.mp4</code></pre>
         <span class="flow-node">Render video</span>
         <span class="flow-arrow">→</span>
         <span class="flow-node">Đăng Facebook</span>
+      </div>
+
+      <h3>8.1. Trang quản trị (<code>/manage/*</code>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Trang</th><th>Chức năng</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>/manage/sources</code></td><td>Quản lý nguồn thu thập tin (RSS / social)</td></tr>
+            <tr><td><code>/manage/pages</code></td><td>Quản lý Facebook Page — lưu access token &amp; cookie (mã hóa)</td></tr>
+            <tr><td><code>/manage/groups</code></td><td>Quản lý Facebook Group gắn với Page</td></tr>
+            <tr><td><code>/manage/settings</code></td><td>Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — <strong>chỉ admin</strong></td></tr>
+            <tr><td><code>/manage/users</code></td><td>Quản lý người dùng &amp; phân quyền — <strong>chỉ admin</strong></td></tr>
+            <tr><td><code>/dashboard</code></td><td>Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Tiện lợi</span>
+        Nhờ có <code>/manage/settings</code>, bạn có thể đổi khóa LLM/Facebook mà không cần sửa <code>.env</code> hay khởi động lại — secret được lưu mã hóa bằng <code>APP_ENCRYPTION_KEY</code>.
       </div>
     </section>
 
@@ -745,12 +802,15 @@ npm run build         # Render video ra out/video.mp4</code></pre>
           </thead>
           <tbody>
             <tr><td>Cảnh báo <code>POSTGRES_URL is not defined</code></td><td>Chưa cấu hình <code>POSTGRES_URL</code> trong <code>.env.local</code>. Thêm chuỗi kết nối Neon.</td></tr>
-            <tr><td>Không viết được bài / lỗi LLM</td><td>Kiểm tra <code>LLM_API_KEY</code>, <code>LLM_MODEL</code> và <code>LLM_BASE_URL</code> (với OpenAI-compatible).</td></tr>
+            <tr><td>Lỗi liên quan <code>APP_ENCRYPTION_KEY</code> / không giải mã được secret</td><td>Chưa đặt <code>APP_ENCRYPTION_KEY</code>, hoặc đã đổi key sau khi lưu secret. Đặt key và <strong>giữ cố định</strong>; nếu lỡ đổi, phải nhập lại secret ở <code>/manage/settings</code>.</td></tr>
+            <tr><td>Đăng nhập không được / bị đăng xuất liên tục</td><td><code>APP_ENCRYPTION_KEY</code> thay đổi khiến session cũ vô hiệu. Đăng nhập lại; giữ key cố định. Quên mật khẩu admin? Xóa/khôi phục hàng <code>users</code> để <code>initDb()</code> seed lại <code>admin@local</code>.</td></tr>
+            <tr><td>Không viết được bài / lỗi LLM</td><td>Kiểm tra <code>LLM_API_KEY</code>, <code>LLM_MODEL</code>, <code>LLM_BASE_URL</code> (trong <code>.env</code> hoặc <code>/manage/settings</code>).</td></tr>
             <tr><td>Không thu thập được tin mạng xã hội</td><td>Cần điền <code>RAPID_API_KEY</code> và/hoặc <code>BRAVE_API_KEY</code>.</td></tr>
-            <tr><td>Không đăng được Facebook</td><td>Kiểm tra <code>FACEBOOK_PAGE_ID</code>, <code>FACEBOOK_ACCESS_TOKEN</code>, <code>FACEBOOK_USER_TOKEN</code>.</td></tr>
+            <tr><td>Không đăng được Facebook Page</td><td>Kiểm tra Page ở <code>/manage/pages</code> (token/cookie) hoặc <code>FACEBOOK_*</code> trong <code>.env</code>.</td></tr>
+            <tr><td>Bot không đăng Group / không nhặt bài</td><td>Đảm bảo bot đang chạy (<code>npm run post</code>), đã <code>npm run login</code>, dùng cùng DB + cùng <code>APP_ENCRYPTION_KEY</code> với web app, và bài đã ở trạng thái <code>ready_for_groups</code> với <code>scheduled_time</code> đã đến hạn.</td></tr>
             <tr><td>Bot Playwright báo thiếu trình duyệt</td><td>Chạy <code>npm run install-browser</code> trong thư mục <code>bot/</code>.</td></tr>
             <tr><td>Render video lỗi</td><td>Cài FFmpeg và chạy <code>npm install</code> trong <code>bot/video-maker/</code>.</td></tr>
-            <tr><td>Bảng DB chưa có</td><td>Gọi API <code>research</code>/<code>stats</code> (mở trang chính hoặc bấm "Thu thập tin") để tự tạo bảng.</td></tr>
+            <tr><td>Bảng DB chưa có</td><td>Gọi API bất kỳ (mở trang chính / đăng nhập) để <code>initDb()</code> tự tạo 7 bảng.</td></tr>
           </tbody>
         </table>
       </div>

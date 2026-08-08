@@ -2,130 +2,160 @@
 
 **Pipeline tự động hóa content marketing: Thu thập tin &rarr; Viết bài bằng AI &rarr; Render video &rarr; Đăng Facebook.**
 
+Hệ thống đa người dùng (multi-user), có đăng nhập & phân quyền, cấu hình chạy được từ giao diện — không phải sửa file `.env` mỗi lần đổi khóa.
+
 ---
 
 ## Tổng quan
 
-Hệ thống 3 bước khép kín cho content creator và marketer:
+Pipeline 3 bước khép kín cho content creator và marketer:
 
-1. **Thu thập tin** &mdash; Crawl tin tức từ nhiều nguồn (RSS, Brave Search, RapidAPI) theo từ khóa
-2. **Chọn & Viết bài** &mdash; AI viết bài theo giọng văn cá nhân, hỗ trợ format POV / News, tự động sinh ảnh minh họa
-3. **Duyệt & Đăng** &mdash; Đăng Facebook Page/Group trực tiếp hoặc hẹn lịch, kèm video Reels tự động render
+1. **Thu thập tin** &mdash; Crawl tin từ RSS, Brave Search và RapidAPI (X/Twitter, Instagram) theo nguồn cấu hình sẵn.
+2. **Chọn & Viết bài** &mdash; AI viết bài tiếng Việt theo giọng văn cá nhân (format **POV** hoặc **News**), tự sinh ảnh minh họa.
+3. **Duyệt & Đăng** &mdash; Duyệt/chỉnh nội dung rồi đăng lên Facebook **Page / Group / Reels**, đăng ngay hoặc hẹn lịch, kèm video Reels tự render.
+
+Ngoài pipeline chính, hệ thống còn có:
+
+- **Đăng nhập & phân quyền** (`admin` / `user`) — mỗi người dùng chỉ thấy dữ liệu của mình; admin thấy tất cả.
+- **Trang quản trị** `/manage/*` — cấu hình Nguồn tin, Facebook Page/Group, người dùng và **secret hệ thống ngay trong DB** (không cần sửa `.env`).
+- **Bot daemon** (`bot/`) — tiến trình chạy nền, tự đăng bài vào Facebook Groups và render/đăng video Reels theo hàng đợi trạng thái trong DB.
 
 ## Tech Stack
 
 | Layer | Công nghệ |
 |-------|-----------|
-| Frontend | Next.js 16, React 18, TypeScript |
+| Frontend | Next.js 16 (App Router), React 18, TypeScript |
 | Database | Neon Postgres (serverless) |
-| AI / LLM | Multi-provider: OpenAI, Anthropic Claude, Groq, Together, Ollama |
+| Auth | Tự xây: mật khẩu scrypt, session ký HMAC (cookie `mkt_session`) |
+| Mã hóa | AES-256-GCM cho secret trong DB (`app_config`, token/cookie Page) |
+| AI / LLM | Đa provider: OpenAI, Anthropic Claude, Groq, Together, Ollama |
 | Image Gen | DALL-E 3 hoặc provider tương thích |
 | Video | Remotion + FFmpeg, OpenAI TTS |
 | Social | Facebook Graph API v21.0, Playwright automation |
 | Scraping | Brave Search API, RapidAPI, RSS Parser |
 
-## Cài đặt
+## Cài đặt nhanh
 
-> 📖 **Xem hướng dẫn cài đặt & chạy chi tiết:** [docs/HUONG-DAN-CAI-DAT.md](docs/HUONG-DAN-CAI-DAT.md) ([bản HTML](docs/huong-dan-cai-dat.html)) — yêu cầu hệ thống, khởi tạo database, cấu hình bot & video, xử lý sự cố.
+> 📖 **Hướng dẫn cài đặt & chạy chi tiết:** [docs/HUONG-DAN-CAI-DAT.md](docs/HUONG-DAN-CAI-DAT.md) ([bản HTML](docs/huong-dan-cai-dat.html)) — yêu cầu hệ thống, khởi tạo DB, đăng nhập lần đầu, cấu hình bot & video, xử lý sự cố.
 
 ```bash
 git clone https://github.com/dongphuongman/Post-Automation.git
 cd Post-Automation
 npm install
+cp .env.example .env.local   # rồi điền giá trị (xem bên dưới)
+npm run dev                  # http://localhost:3000
 ```
 
-### Cấu hình env
+### Đăng nhập lần đầu
 
-Copy `.env.example` thành `.env.local` và điền các giá trị:
+Database tự khởi tạo ở lần gọi API đầu tiên và **seed sẵn một tài khoản admin**:
+
+```
+Email:    admin@local
+Password: admin123
+```
+
+> ⚠️ Đổi mật khẩu ngay sau khi đăng nhập (trang `/profile`). Tạo thêm người dùng ở `/manage/users`.
+
+### Cấu hình `.env.local`
+
+Chỉ **2 biến là bắt buộc** để khởi động — phần lớn secret còn lại nên đặt trong giao diện `/manage/settings` (lưu mã hóa trong DB), `.env` chỉ là phương án dự phòng.
 
 ```env
-# Database
+# Bắt buộc
 POSTGRES_URL=postgresql://user:password@host/dbname
+APP_ENCRYPTION_KEY=            # openssl rand -hex 32 — GIỮ CỐ ĐỊNH, đổi = hỏng hết secret & session
 
-# LLM Provider: "openai" (default) hoặc "anthropic"
-LLM_PROVIDER=openai
-
-# LLM config
-LLM_BASE_URL=https://api.openai.com/v1    # Không cần nếu dùng Anthropic
+# LLM (bắt buộc để viết bài — có thể đặt ở /manage/settings thay vì đây)
+LLM_PROVIDER=openai            # "openai" (mặc định) hoặc "anthropic"
+LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=sk-...
-LLM_MODEL=gpt-4o                          # Hoặc claude-sonnet-4-20250514
+LLM_MODEL=gpt-4o              # hoặc claude-sonnet-4-20250514
 
-# Image (tùy chọn, mặc định dùng LLM_API_KEY)
-# IMAGE_BASE_URL=
-# IMAGE_API_KEY=
-# IMAGE_MODEL=dall-e-3
-
-# TTS cho video (hiện chỉ hỗ trợ OpenAI)
-OPENAI_API_KEY=sk-...
-
-# Gemini fallback
-# GEMINI_API_KEY=
-# GEMINI_MODEL=gemini-2.0-flash
-
-# Scraping
-RAPID_API_KEY=
-BRAVE_API_KEY=
-
-# Facebook
-FACEBOOK_PAGE_ID=
+# Tùy chọn
+OPENAI_API_KEY=sk-...         # TTS lồng tiếng cho video Reels (chỉ OpenAI)
+# IMAGE_BASE_URL= / IMAGE_API_KEY= / IMAGE_MODEL=dall-e-3   # sinh ảnh; mặc định dùng LLM_API_KEY
+# GEMINI_API_KEY= / GEMINI_MODEL=gemini-2.0-flash           # fallback khi trích xuất script video
+RAPID_API_KEY=                # thu thập X/Twitter, Instagram
+BRAVE_API_KEY=                # tìm kiếm bổ sung
+FACEBOOK_PAGE_ID=             # fallback khi đăng Page (khuyến nghị cấu hình Page ở /manage/pages)
 FACEBOOK_ACCESS_TOKEN=
 FACEBOOK_USER_TOKEN=
 ```
 
-### Chạy
+## Kiến trúc & luồng dữ liệu
 
-```bash
-npm run dev        # Dev server tại http://localhost:3000
-npm run build      # Production build
+```
+Người dùng (đăng nhập)
+   │
+   ├─ /            Pipeline 3 bước: Research → Write → Review & Publish
+   ├─ /dashboard   Hàng đợi bot: đếm bài theo trạng thái, bài gần đây
+   ├─ /manage/*    Sources · Pages · Groups · Users · Settings (secret trong DB)
+   └─ /profile     Đổi tên / mật khẩu
+        │
+   Web app (Next.js)  ──►  Neon Postgres  ◄──  Bot daemon (Playwright)
+   - viết bài (LLM)         posts.status         - poll mỗi 60s
+   - sinh ảnh               = hàng đợi            - đăng Group (UI Facebook)
+   - đăng Page (Graph API)                        - render Reels (Remotion) → đăng
 ```
 
-### Bot video (tùy chọn)
+### Vòng đời trạng thái bài đăng (`posts.status`)
 
-```bash
-cd bot/video-maker
-npm install
-# Xem render-cmd.js để biết cách dùng
+Web app đặt bài vào hàng đợi, bot nhặt theo trạng thái + `scheduled_time`:
+
 ```
+draft ─► ready_for_page  ─► page_posting   ─► posted          (đăng Page — Graph API)
+      └► ready_for_groups ─► groups_posting ─► groups_posted   (đăng Group — bot Playwright)
+```
+
+Video Reels đi theo cột riêng: `video_status` = `none → pending → completed` (hoặc `error`), gated bởi cờ `create_video`.
+
+### Bảng dữ liệu (tự tạo qua `initDb()`)
+
+`sources`, `articles`, `posts`, `facebook_pages`, `facebook_groups`, `app_config` (secret mã hóa), `users`. `seedDb()` thêm 6 nguồn RSS mặc định (TechCrunch, NFX, Indie Hackers, a16z, Crunchbase News, TechStartups) và tài khoản admin.
 
 ## Cấu trúc dự án
 
 ```
 src/
-├── app/                  # Next.js App Router
-│   ├── api/              # API routes
-│   │   ├── research/     # Crawl & tìm tin tức
-│   │   ├── write/        # AI viết bài
-│   │   ├── articles/     # CRUD bài viết
-│   │   ├── posts/        # Quản lý bài đăng
-│   │   ├── post-facebook/ # Đăng Facebook
-│   │   └── stats/        # Thống kê
-│   ├── globals.css       # Design system + responsive
-│   └── page.tsx          # Trang chính (3-step pipeline)
-├── components/
-│   ├── layout/           # Sidebar, Stepper (mobile drawer)
-│   └── pipeline/         # StepResearch, StepSelect, StepReview
-├── hooks/                # usePosts, custom hooks
+├── middleware.ts             # Gác auth mọi route + security headers + kiểm tra CSRF
+├── app/
+│   ├── api/                  # API routes (owner-scoped; settings/users chỉ admin)
+│   │   ├── auth/{login,logout,me}/   # đăng nhập/đăng xuất/phiên hiện tại
+│   │   ├── research/ write/          # crawl tin · AI viết bài + sinh ảnh
+│   │   ├── articles/ posts/ stats/   # dữ liệu pipeline
+│   │   ├── post-facebook/ ready-groups/  # đăng Page · đẩy bài cho bot
+│   │   ├── dashboard/ image-proxy/   # hàng đợi bot · proxy ảnh (public)
+│   │   ├── pages/ groups/ sources/   # CRUD cấu hình
+│   │   └── settings/ users/          # quản trị (admin-only)
+│   ├── login/ profile/ dashboard/    # trang xác thực & tổng quan
+│   ├── manage/{sources,pages,groups,users,settings}/  # trang quản trị
+│   └── page.tsx                      # pipeline 3 bước
+├── components/{layout,pipeline}/     # Sidebar, Stepper · Step* + card components
+├── hooks/                            # usePosts, usePages, useGroups, ...
 └── lib/
-    ├── ai/               # llm-client.ts, writer.ts, image-generator.ts
-    ├── db/               # Neon Postgres queries
-    └── constants.ts
+    ├── ai/                # llm-client · writer · image-generator
+    ├── research/          # rss-scraper · social-scraper
+    ├── facebook/          # poster (Graph API v21.0)
+    ├── auth.ts crypto.ts  # scrypt + HMAC session · AES-256-GCM
+    ├── db.ts config-store.ts  # Neon + initDb/seedDb · config DB-first (cache)
+    └── constants.ts rate-limit.ts api-response.ts
 
-bot/
-├── lib/                  # llm-fetch.js, config.js, db.js
-├── post-groups.js        # Bot đăng bài vào groups
-├── video-maker/          # Remotion video rendering
-│   └── src/              # Video components (MainVideo, BlockVideo)
-└── scripts/              # Utility scripts
+bot/                       # Tiến trình daemon riêng (package.json riêng)
+├── post-groups.js         # loop() poll mỗi 60s: đăng Group + xử lý video
+├── lib/                   # db · crypto (khớp src) · config-db/config · llm-fetch
+├── scripts/               # login (đăng nhập FB thủ công) · check-db · fix-db · flush
+├── video-maker/           # Remotion: render Reels MP4 + OpenAI TTS
+└── fb-profile/            # profile Chromium đã đăng nhập (Playwright persistent)
 
-docs/
-└── huong-dan-su-dung.html  # Hướng dẫn sử dụng (tiếng Việt)
+docs/                      # HUONG-DAN-CAI-DAT.md + bản HTML hướng dẫn
 ```
 
 ## LLM Provider
 
-Chuyển đổi provider bằng env var `LLM_PROVIDER`, không cần sửa code:
+Chuyển provider bằng biến `LLM_PROVIDER` (hoặc cấu hình ở `/manage/settings`), **không cần sửa code**:
 
-### OpenAI-compatible (default)
+### OpenAI-compatible (mặc định)
 
 ```env
 LLM_PROVIDER=openai
@@ -142,21 +172,30 @@ LLM_API_KEY=sk-ant-...
 LLM_MODEL=claude-sonnet-4-20250514
 ```
 
-### Các provider OpenAI-compatible khác
+### Provider OpenAI-compatible khác
 
 | Provider | `LLM_BASE_URL` | Model ví dụ |
 |----------|----------------|-------------|
 | Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
 | Together | `https://api.together.xyz/v1` | `meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo` |
-| Ollama | `http://localhost:11434/v1` | `llama3.1` |
+| Ollama (local) | `http://localhost:11434/v1` | `llama3.1` |
 
-> Image generation và TTS vẫn dùng OpenAI riêng (qua `OPENAI_API_KEY`). Gemini dùng làm fallback khi LLM chính lỗi.
+> Sinh ảnh (Image) và TTS vẫn dùng OpenAI riêng qua `OPENAI_API_KEY`. Gemini dùng làm fallback khi trích xuất script video.
+
+## Bảo mật
+
+- **Xác thực**: mật khẩu băm bằng **scrypt** (salt riêng, `timingSafeEqual`); session là token **ký HMAC** trong cookie `mkt_session` (HttpOnly, SameSite=Lax, `Secure` ở production, hạn 7 ngày), hỗ trợ thu hồi session.
+- **Mã hóa secret**: token/cookie Facebook Page và các secret trong `app_config` được mã hóa **AES-256-GCM** bằng `APP_ENCRYPTION_KEY`. API không bao giờ trả secret thô (Page chỉ trả `has_token`/`has_cookies`).
+- **Middleware**: gác toàn bộ route (trừ `/login`), thêm security headers (X-Frame-Options, nosniff, HSTS, CSP), và **kiểm tra CSRF** cho request ghi `/api/*` (Origin phải khớp Host).
+- **Rate limit** cho endpoint `research`; **phân tách dữ liệu theo `owner_id`** — user thường không thấy dữ liệu của người khác.
+
+> ⚠️ `APP_ENCRYPTION_KEY` phải được sinh một lần và **giữ cố định vĩnh viễn**. Đổi key sẽ khiến toàn bộ secret đã lưu và session hiện tại không giải mã được.
 
 ## Responsive
 
 Giao diện hỗ trợ desktop & mobile:
-- Desktop: sidebar cố định + 3-step pipeline
-- Mobile: drawer sidebar, stepper thu gọn, layout xếp dọc, touch-friendly (44px targets)
+- Desktop: sidebar cố định + pipeline 3 bước.
+- Mobile: drawer sidebar, stepper thu gọn, layout xếp dọc, touch-friendly (44px targets).
 
 ## License
 

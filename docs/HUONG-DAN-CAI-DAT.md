@@ -60,12 +60,28 @@ Mở trình duyệt tại **http://localhost:3000** để bắt đầu.
 
 **Không cần chạy migration thủ công.** Database tự khởi tạo:
 
-- Khi ứng dụng gọi API `research` hoặc `stats` (ví dụ: lần đầu mở trang chính hoặc bấm "Thu thập tin"), hàm `initDb()` sẽ tự động tạo 3 bảng: `sources`, `articles`, `posts`.
-- Hàm `seedDb()` tự động thêm sẵn 6 nguồn RSS mặc định (TechCrunch, NFX, Indie Hackers, a16z, Crunchbase News, TechStartups).
+- Ở lần gọi API đầu tiên (mở trang chính hoặc đăng nhập), hàm `initDb()` tự tạo **7 bảng**: `sources`, `articles`, `posts`, `facebook_pages`, `facebook_groups`, `app_config` (lưu secret mã hóa), `users`.
+- `initDb()` cũng **seed sẵn một tài khoản admin** (xem Mục 3.1).
+- Hàm `seedDb()` thêm sẵn 6 nguồn RSS mặc định (TechCrunch, NFX, Indie Hackers, a16z, Crunchbase News, TechStartups).
 
 Bạn chỉ cần đảm bảo biến `POSTGRES_URL` trong `.env.local` trỏ đúng tới database Neon còn hoạt động.
 
 > **Lấy connection string:** Đăng nhập [Neon Console](https://console.neon.tech) → tạo project → copy chuỗi kết nối dạng `postgresql://user:password@host/dbname` vào biến `POSTGRES_URL`.
+
+### 3.1. Đăng nhập lần đầu & tài khoản admin
+
+Hệ thống có xác thực đa người dùng. Tài khoản admin được seed tự động:
+
+```
+Email:    admin@local
+Password: admin123
+```
+
+- ⚠️ **Đổi mật khẩu ngay** sau khi đăng nhập tại trang **`/profile`**.
+- Tạo thêm người dùng, phân quyền (`admin` / `user`) tại **`/manage/users`** (chỉ admin).
+- Mỗi người dùng chỉ thấy dữ liệu của mình (`owner_id`); admin thấy tất cả.
+
+Đăng nhập yêu cầu biến `APP_ENCRYPTION_KEY` đã được đặt (dùng để ký session) — xem Mục 4.
 
 ---
 
@@ -77,14 +93,20 @@ Bạn chỉ cần đảm bảo biến `POSTGRES_URL` trong `.env.local` trỏ đ
 # Database — Neon Postgres (bắt buộc)
 POSTGRES_URL=postgresql://user:password@host/dbname
 
+# Khóa mã hóa (BẮT BUỘC) — mã hóa secret trong DB (AES-256-GCM) + ký session đăng nhập
+# Sinh 1 lần rồi GIỮ CỐ ĐỊNH:  openssl rand -hex 32
+APP_ENCRYPTION_KEY=
+
 # Nhà cung cấp LLM: "openai" (mặc định) hoặc "anthropic"
 LLM_PROVIDER=openai
 
-# Cấu hình LLM (bắt buộc để viết bài bằng AI)
+# Cấu hình LLM (bắt buộc để viết bài bằng AI — có thể đặt ở /manage/settings thay vì đây)
 LLM_BASE_URL=https://api.openai.com/v1     # Bỏ trống nếu dùng Anthropic
 LLM_API_KEY=sk-...
 LLM_MODEL=gpt-4o
 ```
+
+> 💡 **Mẹo:** Phần lớn secret (LLM, image, Facebook, scraping) có thể cấu hình ngay trong giao diện **`/manage/settings`** — được lưu **mã hóa** trong DB (bảng `app_config`). Khi đó `.env` chỉ cần `POSTGRES_URL` và `APP_ENCRYPTION_KEY`; các biến còn lại chỉ là phương án dự phòng.
 
 ### 4.2. Tùy chọn
 
@@ -116,6 +138,7 @@ FACEBOOK_USER_TOKEN=
 | Biến | Bắt buộc | Mô tả |
 |------|:--------:|-------|
 | `POSTGRES_URL` | ✅ | Chuỗi kết nối Neon Postgres |
+| `APP_ENCRYPTION_KEY` | ✅ | Khóa mã hóa secret trong DB + ký session. **Giữ cố định** — đổi = hỏng hết secret & session |
 | `LLM_PROVIDER` | ✅ | `openai` (mặc định) hoặc `anthropic` |
 | `LLM_API_KEY` | ✅ | API key của nhà cung cấp LLM |
 | `LLM_BASE_URL` | ⚠️ | Bắt buộc với OpenAI-compatible; **không cần** với Anthropic |
@@ -163,7 +186,7 @@ LLM_MODEL=claude-sonnet-4-20250514
 
 ## 6. Cài đặt Bot đăng Facebook Groups (tùy chọn)
 
-Bot dùng Playwright để đăng bài vào Facebook Groups dưới danh nghĩa Page.
+Bot là một **tiến trình daemon chạy nền** dùng Playwright để đăng bài vào Facebook Groups dưới danh nghĩa Page, đồng thời render & đăng video Reels. Nó poll database mỗi **60 giây**, nhặt các bài theo trạng thái trong hàng đợi.
 
 ```bash
 cd bot
@@ -171,12 +194,25 @@ npm install
 npm run install-browser      # Cài trình duyệt Chromium cho Playwright
 ```
 
-Bot dùng chung database với web app, nên cần biến `POSTGRES_URL` (đặt trong file `.env` của thư mục `bot/` hoặc biến môi trường hệ thống — bot nạp qua `dotenv`).
+Bot dùng chung database với web app, nên cần biến kết nối DB — chấp nhận `DATABASE_URL` **hoặc** `POSTGRES_URL` (đặt trong file `.env` của thư mục `bot/` hoặc biến môi trường hệ thống — bot nạp qua `dotenv`). Bot dùng chung `APP_ENCRYPTION_KEY` để giải mã cookie/token Page đã lưu, nên key này **phải giống hệt** web app.
+
+**Đăng nhập Facebook (chạy một lần trước khi bot làm việc):**
+
+```bash
+npm run login        # Mở Chromium (không headless) → tự đăng nhập Facebook thủ công
+```
+
+Cửa sổ Chromium mở ra profile cố định tại `bot/fb-profile/`. Đăng nhập Facebook (qua mọi bước xác minh), rồi đóng cửa sổ — phiên đăng nhập được lưu lại để bot chạy dưới danh nghĩa tài khoản đó.
+
+> ⚠️ Không chạy `login` khi bot đang chạy: cả hai dùng chung một profile.
+
+**Cơ chế hàng đợi:** web app đặt bài sang trạng thái `ready_for_page` / `ready_for_groups` (kèm `scheduled_time`), bot nhặt và chuyển tiếp `page_posting → posted` hoặc `groups_posting → groups_posted`; nếu lỗi sẽ trả về trạng thái `ready_*` để thử lại. Video Reels đi theo cột `video_status`: `pending → completed`.
 
 Các lệnh có sẵn:
 
 ```bash
-npm run post          # Chạy bot đăng bài (node post-groups.js)
+npm run post          # Chạy bot daemon (node post-groups.js) — loop mỗi 60s
+npm run login         # Đăng nhập Facebook thủ công (lưu vào bot/fb-profile/)
 npm run check-db      # Kiểm tra 5 bài đăng gần nhất trong DB
 npm run fix-db        # Sửa/đồng bộ schema DB
 npm run flush         # Xóa dữ liệu (dùng thận trọng)
@@ -210,9 +246,23 @@ Tham khảo file `bot/video-maker/render-cmd.js` để biết cách truyền tha
 
 Sau khi chạy `npm run dev` và mở http://localhost:3000:
 
+0. **Đăng nhập** — dùng `admin@local` / `admin123` (đổi mật khẩu ngay ở `/profile`).
 1. **Thu thập tin** — Bấm thu thập để crawl tin tức từ RSS / Brave Search / RapidAPI theo nguồn.
 2. **Chọn & Viết bài** — Chọn tin, AI viết bài theo giọng văn (format POV / News), tự sinh ảnh minh họa.
-3. **Duyệt & Đăng** — Duyệt nội dung rồi đăng Facebook Page/Group (đăng ngay hoặc hẹn lịch), kèm video Reels nếu cần.
+3. **Duyệt & Đăng** — Duyệt nội dung rồi đăng Facebook **Page / Group / Reels** (đăng ngay hoặc hẹn lịch), kèm video Reels nếu cần.
+
+### 8.1. Trang quản trị (`/manage/*`)
+
+| Trang | Chức năng |
+|-------|-----------|
+| `/manage/sources` | Quản lý nguồn thu thập tin (RSS / social) |
+| `/manage/pages` | Quản lý Facebook Page — lưu access token & cookie (mã hóa) |
+| `/manage/groups` | Quản lý Facebook Group gắn với Page |
+| `/manage/settings` | Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — **chỉ admin** |
+| `/manage/users` | Quản lý người dùng & phân quyền — **chỉ admin** |
+| `/dashboard` | Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây |
+
+> Nhờ có `/manage/settings`, bạn có thể đổi khóa LLM/Facebook mà không cần sửa `.env` hay khởi động lại — secret được lưu mã hóa bằng `APP_ENCRYPTION_KEY`.
 
 ---
 
@@ -221,12 +271,15 @@ Sau khi chạy `npm run dev` và mở http://localhost:3000:
 | Triệu chứng | Nguyên nhân & cách xử lý |
 |-------------|--------------------------|
 | Cảnh báo `POSTGRES_URL is not defined` | Chưa cấu hình `POSTGRES_URL` trong `.env.local`. Thêm chuỗi kết nối Neon. |
-| Không viết được bài / lỗi LLM | Kiểm tra `LLM_API_KEY`, `LLM_MODEL`, và `LLM_BASE_URL` (với OpenAI-compatible). |
+| Lỗi liên quan `APP_ENCRYPTION_KEY` / không giải mã được secret | Chưa đặt `APP_ENCRYPTION_KEY`, hoặc đã đổi key sau khi lưu secret. Đặt key và **giữ cố định**; nếu lỡ đổi, phải nhập lại secret ở `/manage/settings`. |
+| Đăng nhập không được / bị đăng xuất liên tục | `APP_ENCRYPTION_KEY` thay đổi khiến session cũ vô hiệu. Đăng nhập lại; giữ key cố định. Quên mật khẩu admin? Xóa/khôi phục hàng `users` để `initDb()` seed lại `admin@local`. |
+| Không viết được bài / lỗi LLM | Kiểm tra `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` (trong `.env` hoặc `/manage/settings`). |
 | Không thu thập được tin mạng xã hội | Cần điền `RAPID_API_KEY` và/hoặc `BRAVE_API_KEY`. |
-| Không đăng được Facebook | Kiểm tra `FACEBOOK_PAGE_ID`, `FACEBOOK_ACCESS_TOKEN`, `FACEBOOK_USER_TOKEN`. |
+| Không đăng được Facebook Page | Kiểm tra Page ở `/manage/pages` (token/cookie) hoặc `FACEBOOK_*` trong `.env`. |
+| Bot không đăng Group / không nhặt bài | Đảm bảo bot đang chạy (`npm run post`), đã `npm run login`, dùng cùng DB + cùng `APP_ENCRYPTION_KEY` với web app, và bài đã ở trạng thái `ready_for_groups` với `scheduled_time` đã đến hạn. |
 | Bot Playwright báo thiếu trình duyệt | Chạy `npm run install-browser` trong thư mục `bot/`. |
 | Render video lỗi | Cài FFmpeg và chạy `npm install` trong `bot/video-maker/`. |
-| Bảng DB chưa có | Gọi API `research`/`stats` (mở trang chính hoặc bấm "Thu thập tin") để tự tạo bảng. |
+| Bảng DB chưa có | Gọi API bất kỳ (mở trang chính / đăng nhập) để `initDb()` tự tạo 7 bảng. |
 
 ---
 
