@@ -239,42 +239,63 @@ async function confirmSwitchProfileModal(page) {
   }
 }
 
+// Selector ô soạn bài của Page theo THỨ TỰ ƯU TIÊN (nhãn tin cậy nhất trước).
+// KHÔNG gộp thành 1 locator .first(): .first() lấy theo thứ tự DOM nên dễ trúng
+// tooltip "Chia sẻ suy nghĩ" gần avatar thay vì NÚT composer thật ở feed.
+const COMPOSER_SELECTORS = [
+  'div[role="button"]:has-text("Bạn đang nghĩ gì")',
+  '[aria-label*="Bạn đang nghĩ gì"]',
+  'div[role="button"]:has-text("Chia sẻ suy nghĩ")',
+  '[aria-label*="Chia sẻ suy nghĩ"]',
+  'div[role="button"]:has-text("What\'s on your mind")',
+  '[aria-label*="What\'s on your mind"]',
+];
+
+// Thử mở composer theo thứ tự ưu tiên; click element VISIBLE đầu tiên.
+// Trả về selector đã khớp (đã click) hoặc null.
+async function tryOpenComposer(page, timeoutEach = 2500) {
+  for (const sel of COMPOSER_SELECTORS) {
+    try {
+      const el = page.locator(sel).first();
+      await el.waitFor({ state: 'visible', timeout: timeoutEach });
+      await el.scrollIntoViewIfNeeded().catch(() => {});
+      await el.click();
+      return sel;
+    } catch {}
+  }
+  return null;
+}
+
 async function switchToPageIdentity(page, pageName = PAGE_NAME) {
   // Modal "Chuyển trang cá nhân" có thể đã bật sẵn ngay khi vào Page → xác nhận trước.
   await confirmSwitchProfileModal(page);
 
-  // Nếu composer đã sẵn → đang ở tư cách Trang rồi, bỏ qua.
-  // Ô soạn bài trên Page có thể mang nhãn "Bạn đang nghĩ gì" HOẶC "Chia sẻ suy nghĩ"
-  // (tùy giao diện Quản lý trang) hoặc "What's on your mind".
+  // Nếu composer đã sẵn → đang ở tư cách Trang rồi, bỏ qua. (Kiểm tra sự hiện diện —
+  // gộp .first() ở đây chấp nhận được vì chỉ cần biết đã ở trên Page.)
   try {
-    await page.locator('[aria-label*="Bạn đang nghĩ gì"], [aria-label*="Chia sẻ suy nghĩ"], [aria-label*="What\'s on your mind"]')
-      .first().waitFor({ timeout: 4000 });
+    await page.locator(COMPOSER_SELECTORS.join(', ')).first().waitFor({ state: 'visible', timeout: 4000 });
     console.log('   ✅ Đang ở tư cách Trang (composer sẵn sàng).');
     return true;
   } catch {}
 
-  // Thử lần lượt các nút chuyển tư cách Trang (banner onboarding + nút ở khung hồ sơ).
-  const switchSelectors = [
-    'div[role="button"]:has-text("Chuyển ngay")',
-    `div[role="button"]:has-text("Chuyển thành ${pageName}")`,
-    `div[role="button"][aria-label*="${pageName}"]:has-text("Chuyển")`,
-    'div[role="button"]:has-text("Chuyển")',
-  ];
-  for (const sel of switchSelectors) {
-    try {
-      const el = page.locator(sel).first();
-      await el.waitFor({ timeout: 5000 });
-      await el.click();
-      console.log(`   🔄 Đã bấm chuyển sang tư cách Trang.`);
-      await delay(2, 3);
-      // Bấm "Chuyển" có thể mở modal xác nhận — xử lý nốt.
-      await confirmSwitchProfileModal(page);
-      await delay(2, 4); // chờ FB tải lại giao diện Trang
-      return true;
-    } catch {}
+  // Bấm nút chuyển tư cách Trang (banner/khung hồ sơ). GỘP selector + timeout ngắn
+  // để không tốn ~20s dò tuần tự khi không cần chuyển.
+  try {
+    const switchBtn = page.locator([
+      'div[role="button"]:has-text("Chuyển ngay")',
+      `div[role="button"]:has-text("Chuyển thành ${pageName}")`,
+      'div[role="button"]:has-text("Chuyển")',
+    ].join(', ')).first();
+    await switchBtn.waitFor({ timeout: 4000 });
+    await switchBtn.click();
+    console.log('   🔄 Đã bấm chuyển sang tư cách Trang.');
+    await delay(2, 3);
+    await confirmSwitchProfileModal(page); // bấm "Chuyển" có thể mở modal xác nhận
+    return true;
+  } catch {
+    console.log('   ⚠️ Không tìm thấy nút chuyển tư cách Trang — sẽ thử mở composer trực tiếp.');
+    return false;
   }
-  console.log('   ⚠️ Không tìm thấy nút chuyển tư cách Trang — sẽ thử mở composer trực tiếp.');
-  return false;
 }
 
 // Đăng thẳng lên tường TRANG (Page) mà tài khoản đang quản trị — tư cách Page,
@@ -289,35 +310,19 @@ async function postToPage(page, content, imagePath, pageName = PAGE_NAME, pageUr
   await switchToPageIdentity(page, pageName);
   await delay(1, 2);
 
-  // An toàn: modal "Chuyển trang cá nhân" có thể còn/bật lại — xác nhận nốt trước khi mở composer.
-  await confirmSwitchProfileModal(page);
-
-  // Mở composer của Page
-  const composerSelectors = [
-    '[aria-label*="Bạn đang nghĩ gì"]',
-    '[aria-label*="Chia sẻ suy nghĩ"]',
-    '[aria-label*="What\'s on your mind"]',
-    '[aria-label*="Tạo bài viết"]',
-    '[aria-label*="Create a post"]',
-    'div[role="button"]:has-text("Bạn đang nghĩ gì")',
-    'div[role="button"]:has-text("Chia sẻ suy nghĩ")',
-    'div[role="button"]:has-text("What\'s on your mind")',
-    'div[role="button"]:has-text("Viết bài")',
-    'span:has-text("Bạn đang nghĩ gì")',
-    'span:has-text("Chia sẻ suy nghĩ")',
-    'span:has-text("What\'s on your mind")',
-  ];
-
+  // Mở composer — sau khi chuyển tư cách, FB thường RELOAD; nếu thử mở ngay sẽ trượt.
+  // Thử lại vài lần: mỗi lần dọn modal (nếu bật lại) + chờ trang settle rồi mới mở.
   let opened = false;
-  for (const selector of composerSelectors) {
-    try {
-      const el = page.locator(selector).first();
-      await el.waitFor({ timeout: 10000 });
-      await el.click();
+  for (let attempt = 1; attempt <= 4 && !opened; attempt++) {
+    await confirmSwitchProfileModal(page);
+    const sel = await tryOpenComposer(page);
+    if (sel) {
       opened = true;
-      console.log(`   ✅ Mở composer Page bằng: ${selector}`);
-      break;
-    } catch {}
+      console.log(`   ✅ Mở composer Page (lần ${attempt}) bằng: ${sel}`);
+    } else {
+      console.log(`   ⏳ Composer chưa sẵn (lần ${attempt}) — chờ trang settle & thử lại...`);
+      await delay(3, 5);
+    }
   }
 
   if (!opened) {
