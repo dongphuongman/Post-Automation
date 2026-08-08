@@ -220,7 +220,29 @@ async function postToGroup(page, groupUrl, content, imagePath, pageName = PAGE_N
 // Chuyển hồ sơ ĐANG HOẠT ĐỘNG sang TRANG (Page). Với "Trang bản mới" của Facebook,
 // composer "Bạn đang nghĩ gì?" CHỈ xuất hiện khi bạn đang ở tư cách Trang — nếu vẫn
 // là hồ sơ cá nhân thì không có ô soạn bài để đăng AS Page.
+// Sau khi bấm "Chuyển", Facebook thường bật modal xác nhận "Chuyển trang cá nhân"
+// (Chuyển sang <Page> để dùng thêm tính năng...). Modal này che composer nếu không
+// bấm nút "Chuyển" bên trong nó. Hàm này phát hiện & xác nhận modal đó.
+async function confirmSwitchProfileModal(page) {
+  try {
+    const dialog = page.locator('div[role="dialog"]:has-text("Chuyển trang cá nhân")').first();
+    await dialog.waitFor({ timeout: 4000 });
+    // Nút xác nhận là "Chuyển" (nút xanh) NẰM TRONG dialog — dùng exact để không dính
+    // tiêu đề "Chuyển trang cá nhân" hay link "Xem tất cả trang cá nhân".
+    const confirmBtn = dialog.getByRole('button', { name: 'Chuyển', exact: true }).last();
+    await confirmBtn.click();
+    console.log('   🔀 Đã xác nhận modal "Chuyển trang cá nhân" → chuyển sang Page.');
+    await delay(4, 7); // chờ FB tải lại giao diện dưới tư cách Page
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function switchToPageIdentity(page, pageName = PAGE_NAME) {
+  // Modal "Chuyển trang cá nhân" có thể đã bật sẵn ngay khi vào Page → xác nhận trước.
+  await confirmSwitchProfileModal(page);
+
   // Nếu composer đã sẵn → đang ở tư cách Trang rồi, bỏ qua.
   try {
     await page.locator('[aria-label*="Bạn đang nghĩ gì"], [aria-label*="What\'s on your mind"]')
@@ -242,7 +264,10 @@ async function switchToPageIdentity(page, pageName = PAGE_NAME) {
       await el.waitFor({ timeout: 5000 });
       await el.click();
       console.log(`   🔄 Đã bấm chuyển sang tư cách Trang.`);
-      await delay(4, 7); // chờ FB tải lại giao diện Trang
+      await delay(2, 3);
+      // Bấm "Chuyển" có thể mở modal xác nhận — xử lý nốt.
+      await confirmSwitchProfileModal(page);
+      await delay(2, 4); // chờ FB tải lại giao diện Trang
       return true;
     } catch {}
   }
@@ -261,6 +286,9 @@ async function postToPage(page, content, imagePath, pageName = PAGE_NAME, pageUr
   // Bước quan trọng: chuyển sang tư cách Trang để composer xuất hiện
   await switchToPageIdentity(page, pageName);
   await delay(1, 2);
+
+  // An toàn: modal "Chuyển trang cá nhân" có thể còn/bật lại — xác nhận nốt trước khi mở composer.
+  await confirmSwitchProfileModal(page);
 
   // Mở composer của Page
   const composerSelectors = [
