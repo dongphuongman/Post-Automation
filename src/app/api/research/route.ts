@@ -2,11 +2,18 @@ import { sql, initDb, seedDb } from '@/lib/db';
 import { scrapeAllRSSFeeds, ScrapedArticle } from '@/lib/research/rss-scraper';
 import { searchSocialMedia } from '@/lib/research/social-scraper';
 import { ok, fail } from '@/lib/api-response';
+import { getSession } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+    const s = getSession(req);
+    if (!s) return fail('Chưa đăng nhập', 401);
+    if (!rateLimit(`research:${s.uid}`, 10, 60_000)) {
+      return fail('Quá nhiều yêu cầu. Vui lòng đợi một chút.', 429);
+    }
     try {
       await initDb();
       await seedDb();
@@ -18,7 +25,9 @@ export async function POST(req: Request) {
     let articles: ScrapedArticle[] = [];
 
     if (sourceFilter === 'all' || sourceFilter === 'news') {
-      const rssSources = await sql`SELECT name, rss_url FROM sources WHERE type = 'rss' AND active = 1`;
+      const rssSources = s.role === 'admin'
+        ? await sql`SELECT name, rss_url FROM sources WHERE type = 'rss' AND active = 1`
+        : await sql`SELECT name, rss_url FROM sources WHERE type = 'rss' AND active = 1 AND owner_id = ${s.uid}`;
       const rssData = await scrapeAllRSSFeeds(rssSources as any);
       articles = [...articles, ...rssData];
     }
@@ -40,7 +49,7 @@ export async function POST(req: Request) {
       let [source] = await sql`SELECT id FROM sources WHERE name = ${a.sourceName}`;
       if (!source) {
         const newSourceId = 's_' + crypto.randomUUID().slice(0, 12);
-        await sql`INSERT INTO sources (id, name, type) VALUES (${newSourceId}, ${a.sourceName}, 'social')`;
+        await sql`INSERT INTO sources (id, name, type, owner_id) VALUES (${newSourceId}, ${a.sourceName}, 'social', ${s.uid})`;
         source = { id: newSourceId };
       }
 
@@ -70,7 +79,7 @@ export async function POST(req: Request) {
             }
           } catch { /* keep original URL on fetch failure */ }
         }
-        await sql`INSERT INTO articles (id, source_id, title, url, summary, original_image_url) VALUES (${id}, ${source.id}, ${a.title}, ${a.url}, ${a.summary}, ${imageData}) ON CONFLICT DO NOTHING`;
+        await sql`INSERT INTO articles (id, source_id, title, url, summary, original_image_url, owner_id) VALUES (${id}, ${source.id}, ${a.title}, ${a.url}, ${a.summary}, ${imageData}, ${s.uid}) ON CONFLICT DO NOTHING`;
         count++;
       } catch { /* ignore duplicate URL */ }
     }
