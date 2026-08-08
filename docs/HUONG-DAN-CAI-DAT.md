@@ -286,4 +286,5 @@ Sau khi chạy `npm run dev` và mở http://localhost:3000:
 ## 10. Tham khảo thêm
 
 - **README.md** — Tổng quan dự án, tech stack, cấu trúc thư mục.
+- **docs/DEPLOY-COOLIFY.md** — Triển khai lên Coolify qua Docker / Docker Compose; chạy bot headless (Playwright + Xvfb) và đăng nhập Facebook qua VNC.
 - **docs/huong-dan-su-dung.html** — Hướng dẫn sử dụng giao diện (tiếng Việt).

@@ -33,6 +33,7 @@ Ngoài pipeline chính, hệ thống còn có:
 | Video | Remotion + FFmpeg, OpenAI TTS |
 | Social | Facebook Graph API v21.0, Playwright automation |
 | Scraping | Brave Search API, RapidAPI, RSS Parser |
+| Deploy | Docker (web `standalone` + bot Playwright/Xvfb), Coolify (self-host) |
 
 ## Cài đặt nhanh
 
@@ -81,6 +82,22 @@ BRAVE_API_KEY=                # tìm kiếm bổ sung
 FACEBOOK_PAGE_ID=             # fallback khi đăng Page (khuyến nghị cấu hình Page ở /manage/pages)
 FACEBOOK_ACCESS_TOKEN=
 FACEBOOK_USER_TOKEN=
+```
+
+## Triển khai (Docker / Coolify)
+
+> 🚀 **Hướng dẫn deploy chi tiết:** [docs/DEPLOY-COOLIFY.md](docs/DEPLOY-COOLIFY.md) — deploy web app lên [Coolify](https://coolify.io) qua **Dockerfile** hoặc **Docker Compose**, chạy bot headless, đăng nhập FB qua VNC, và làm mới profile (không cần rebuild image).
+
+- **Web app** — [`Dockerfile`](Dockerfile) (Next.js `output: "standalone"`, image gọn) + [`docker-compose.yml`](docker-compose.yml). DB dùng Neon Postgres bên ngoài (không cần container DB). Chạy sau HTTPS vì cookie `Secure` ở production.
+- **Bot** — chạy được trên **Linux KHÔNG màn hình** nhờ [`bot/Dockerfile`](bot/Dockerfile) (image Playwright + **Xvfb** màn hình ảo), vẫn giữ `headless: false`. Đăng nhập Facebook trên server headless một lần qua **VNC** ([`bot/scripts/login-vnc.sh`](bot/scripts/login-vnc.sh)); profile lưu ở volume nên đổi profile không cần rebuild image.
+
+```bash
+# Web app
+docker compose up -d                                   # hoặc để Coolify tự build Dockerfile
+
+# Bot (Linux headless) — mount profile đã đăng nhập làm volume
+docker build -f bot/Dockerfile -t mkt-bot ./bot
+docker run -d --env-file .env.local -v mkt-fb-profile:/app/fb-profile mkt-bot
 ```
 
 ## Kiến trúc & luồng dữ liệu
@@ -142,13 +159,17 @@ src/
     └── constants.ts rate-limit.ts api-response.ts
 
 bot/                       # Tiến trình daemon riêng (package.json riêng)
-├── post-groups.js         # loop() poll mỗi 60s: đăng Group + xử lý video
+├── Dockerfile             # image bot headless: Playwright + Xvfb (+ x11vnc cho VNC login)
+├── post-groups.js         # loop() poll mỗi 60s: đăng Page/Group + xử lý video
 ├── lib/                   # db · crypto (khớp src) · config-db/config · llm-fetch
-├── scripts/               # login (đăng nhập FB thủ công) · check-db · fix-db · flush
+├── scripts/               # login · login-vnc (đăng nhập FB qua VNC) · check-db · fix-db · flush
 ├── video-maker/           # Remotion: render Reels MP4 + OpenAI TTS
 └── fb-profile/            # profile Chromium đã đăng nhập (Playwright persistent)
 
-docs/                      # HUONG-DAN-CAI-DAT.md + bản HTML hướng dẫn
+docs/                      # HUONG-DAN-CAI-DAT.md · DEPLOY-COOLIFY.md + bản HTML hướng dẫn
+
+Dockerfile · docker-compose.yml · .dockerignore   # deploy web app lên Coolify
+next.config.ts             # output: "standalone" (image Docker gọn)
 ```
 
 ## LLM Provider
