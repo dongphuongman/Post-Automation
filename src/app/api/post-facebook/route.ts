@@ -38,6 +38,13 @@ export async function POST(req: Request) {
       results.page = { success: true, message: 'Da danh dau cho Bot dang Page' };
     }
 
+    // Đăng lên TƯỜNG CÁ NHÂN của chính user qua BOT Playwright (cookie riêng của user).
+    if (postTarget === 'profile') {
+      const ts = scheduledTime || null;
+      await sql`UPDATE posts SET status = 'ready_for_profile', scheduled_time = ${ts} WHERE id = ${postId}`;
+      results.profile = { success: true, message: 'Da danh dau cho Bot dang trang ca nhan' };
+    }
+
     // Target 'all' vẫn dùng Graph API cho Page (dùng token của Page đích nếu có)
     if (postTarget === 'all') {
       let creds: { pageGraphId: string; token: string } | undefined;

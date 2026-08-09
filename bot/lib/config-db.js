@@ -17,6 +17,20 @@ async function getPageById(id) {
   } catch { return null; }
 }
 
+// Phiên Facebook CÁ NHÂN của một user (owner) — cookie giải mã để bot đăng lên
+// tường cá nhân của chính chủ. Trả { cookies } hoặc null.
+async function getAccountByOwner(ownerId) {
+  if (!sql || !ownerId) return null;
+  try {
+    const rows = await sql`SELECT cookies_enc FROM facebook_accounts WHERE owner_id = ${ownerId} AND active = 1 ORDER BY created_at DESC LIMIT 1`;
+    const a = rows[0];
+    if (!a) return null;
+    let cookies = null;
+    try { if (a.cookies_enc) cookies = JSON.parse(decrypt(a.cookies_enc)); } catch {}
+    return { cookies };
+  } catch { return null; }
+}
+
 async function getGroupUrlsByIds(ids) {
   if (!sql || !Array.isArray(ids) || !ids.length) return [];
   try {
@@ -43,4 +57,4 @@ async function getSetting(key) {
   return process.env[key];
 }
 
-module.exports = { getPageById, getGroupUrlsByIds, getActiveGroupUrlsForPage, getSetting };
+module.exports = { getPageById, getAccountByOwner, getGroupUrlsByIds, getActiveGroupUrlsForPage, getSetting };

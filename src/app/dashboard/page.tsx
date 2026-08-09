@@ -22,6 +22,8 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   draft: { label: 'Nháp', color: '#64748b' },
   ready_for_page: { label: 'Chờ đăng Page', color: '#0ea5e9' },
   ready_for_groups: { label: 'Chờ đăng Nhóm', color: '#8b5cf6' },
+  ready_for_profile: { label: 'Chờ đăng cá nhân', color: '#0ea5e9' },
+  profile_posting: { label: 'Đang đăng cá nhân', color: '#f59e0b' },
   page_posting: { label: 'Đang đăng Page', color: '#f59e0b' },
   groups_posting: { label: 'Đang đăng Nhóm', color: '#f59e0b' },
   posted: { label: 'Đã đăng (Page)', color: '#10b981' },
@@ -47,7 +49,7 @@ export default function DashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const orderedStatuses = ['ready_for_page', 'ready_for_groups', 'page_posting', 'groups_posting', 'posted', 'groups_posted', 'draft'];
+  const orderedStatuses = ['ready_for_page', 'ready_for_profile', 'ready_for_groups', 'page_posting', 'profile_posting', 'groups_posting', 'posted', 'groups_posted', 'draft'];
 
   const renderPost = (p: RecentPost) => {
     let groupCount = 0;

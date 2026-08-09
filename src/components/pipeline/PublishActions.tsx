@@ -11,6 +11,7 @@ interface PublishActionsProps {
 
 const BUTTONS: { target: PostTarget; bg: string; icon: string; label: string }[] = [
   { target: 'page', bg: '#10b981', icon: '📅', label: 'Trang' },
+  { target: 'profile', bg: '#0ea5e9', icon: '🙍', label: 'Trang cá nhân' },
   { target: 'groups', bg: '#8b5cf6', icon: '👥', label: 'Nhóm' },
   { target: 'all', bg: '#f59e0b', icon: '🚀', label: 'Tất cả' },
   { target: 'reels', bg: '#ec4899', icon: '🎬', label: 'Reels' },

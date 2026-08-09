@@ -14,7 +14,7 @@ const { execSync } = require('child_process');
 const FB_PROFILE_DIR = path.resolve(__dirname, 'fb-profile');
 const { sql } = require('./lib/db');
 const { PAGE_NAME, PAGE_URL, GROUPS, FB_API_VERSION } = require('./lib/config');
-const { getPageById, getGroupUrlsByIds, getActiveGroupUrlsForPage } = require('./lib/config-db');
+const { getPageById, getAccountByOwner, getGroupUrlsByIds, getActiveGroupUrlsForPage } = require('./lib/config-db');
 const { llmChatCompletion } = require('./lib/llm-fetch');
 
 async function spinContent(originalContent) {
@@ -46,6 +46,33 @@ function withTimeout(promise, ms, label = 'thao tác') {
     timer = setTimeout(() => reject(new Error(`Quá thời gian chờ ${Math.round(ms / 1000)}s cho ${label}`)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Kiểm tra phiên FB còn hợp lệ trên `page`: dò URL login/checkpoint + ô mật khẩu.
+// Trả về một hàm async (dùng lại cho cả context persistent lẫn context cá nhân).
+function makeIsLoggedOut(page) {
+  return async () => {
+    const u = page.url();
+    if (u.includes('login') || u.includes('checkpoint') || u.includes('/recover')) return true;
+    try {
+      return await page.locator('input[name="pass"], input[type="password"], form[action*="login"]')
+        .first().isVisible({ timeout: 3000 }).catch(() => false);
+    } catch { return false; }
+  };
+}
+
+// Chuẩn hóa cookie (từ Cookie-Editor) sang định dạng Playwright addCookies.
+function mapCookies(rawCookies) {
+  return (rawCookies || []).map(c => ({
+    name: c.name,
+    value: c.value,
+    domain: c.domain,
+    path: c.path || '/',
+    expires: c.expirationDate || -1,
+    httpOnly: c.httpOnly || false,
+    secure: c.secure || false,
+    sameSite: 'None',
+  }));
 }
 
 async function switchToPage(page, pageName = PAGE_NAME) {
@@ -471,6 +498,134 @@ async function postToPage(page, content, imagePath, pageName = PAGE_NAME, pageUr
   console.log(`   📸 Screenshot: ${filename}`);
 }
 
+// Đăng lên TƯỜNG CÁ NHÂN của chính chủ bài. Chạy trên context riêng nạp cookie của
+// owner (KHÔNG dùng profile cố định của bot). Đơn bước như postToGroup — KHÔNG chuyển
+// tư cách Trang, KHÔNG bước "Tiếp", KHÔNG popup upsell. Audience giữ mặc định của user.
+async function postToProfile(page, content, imagePath) {
+  console.log(`\n🙍 Trang cá nhân: https://www.facebook.com/`);
+  await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await delay(3, 6);
+
+  // Mở composer "Bạn đang nghĩ gì?" (dùng chung COMPOSER_SELECTORS/tryOpenComposer).
+  let opened = false;
+  for (let attempt = 1; attempt <= 3 && !opened; attempt++) {
+    const sel = await tryOpenComposer(page);
+    if (sel) {
+      opened = true;
+      console.log(`   ✅ Mở composer cá nhân (lần ${attempt}) bằng: ${sel}`);
+    } else {
+      console.log(`   ⏳ Composer chưa sẵn (lần ${attempt}) — chờ trang settle & thử lại...`);
+      await delay(3, 5);
+    }
+  }
+  if (!opened) throw new Error('Không mở được ô soạn bài trên trang cá nhân');
+
+  await delay(2, 4);
+
+  // Ô soạn thảo trong dialog
+  const editorSelectors = [
+    'div[role="dialog"] [contenteditable="true"][role="textbox"]',
+    'div[role="dialog"] [data-lexical-editor="true"]',
+    '[aria-label*="Nội dung bài viết"]',
+    '[aria-label*="What\'s on your mind"]',
+    '[contenteditable="true"][role="textbox"]',
+  ];
+
+  let editor = null;
+  for (const sel of editorSelectors) {
+    try {
+      const el = page.locator(sel).last();
+      await el.waitFor({ state: 'visible', timeout: 5000 });
+      editor = el;
+      break;
+    } catch {}
+  }
+
+  if (!editor) throw new Error('Không tìm thấy ô soạn thảo trên trang cá nhân');
+
+  await editor.click();
+  await delay(1, 2);
+
+  // Gõ nội dung (type từng dòng)
+  const lines = content.split('\n');
+  for (const line of lines) {
+    await page.keyboard.type(line, { delay: 25 + Math.random() * 30 });
+    await page.keyboard.press('Enter');
+    await delay(0.2, 0.5);
+  }
+
+  await delay(1, 3);
+
+  // Đính kèm ảnh nếu có
+  if (imagePath && fs.existsSync(imagePath)) {
+    console.log(`   📸 Đang đính kèm ảnh vào bài cá nhân...`);
+    try {
+      const photoBtn = page.locator([
+        'div[aria-label="Ảnh/video"]',
+        'div[aria-label="Photo/video"]',
+        'div[aria-label*="Ảnh"]',
+        'div[aria-label*="Photo"]',
+      ].join(', ')).first();
+
+      const [fileChooser] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 10000 }),
+        photoBtn.click(),
+      ]);
+      await fileChooser.setFiles(imagePath);
+      await delay(5, 8);
+      console.log(`   ✅ Ảnh đã lên khung đăng.`);
+    } catch (e) {
+      try {
+        const fileInput = page.locator('div[role="dialog"] input[type="file"][accept*="image"]').first();
+        await fileInput.setInputFiles(imagePath);
+        await delay(4, 7);
+      } catch (err) {}
+    }
+  }
+
+  await delay(2, 4);
+
+  // Bấm nút "Đăng" (ĐƠN BƯỚC — không có "Tiếp")
+  const postBtnSelectors = [
+    'div[aria-label="Đăng"][role="button"]:not([aria-disabled="true"])',
+    'div[aria-label="Post"][role="button"]:not([aria-disabled="true"])',
+    'button[aria-label="Đăng"]',
+    'div[role="button"]:has-text("Đăng"):not([aria-disabled="true"])',
+  ];
+
+  let posted = false;
+  for (const sel of postBtnSelectors) {
+    try {
+      const btn = page.locator(sel).last();
+      await btn.waitFor({ timeout: 5000 });
+      await btn.click();
+      posted = true;
+      console.log(`   ✅ Đã bấm nút Đăng (cá nhân)`);
+      break;
+    } catch {}
+  }
+
+  if (!posted) throw new Error('Không tìm thấy nút Đăng trên trang cá nhân');
+
+  // Chờ hộp thoại soạn bài đóng hẳn (dấu hiệu publish hoàn tất) — tránh đóng browser
+  // khi FB còn "Đang đăng" khiến bài bị hủy.
+  await delay(2, 3);
+  try {
+    await page.locator('div[role="dialog"] [contenteditable="true"][role="textbox"]')
+      .first()
+      .waitFor({ state: 'detached', timeout: 90000 });
+    console.log('   ✅ Bài đã đăng xong (hộp thoại đã đóng).');
+  } catch {
+    console.log('   ⚠️ Chờ quá lâu chưa thấy hộp thoại đóng — có thể ảnh nặng/mạng chậm.');
+  }
+  await delay(4, 7);
+
+  fs.mkdirSync('screenshots', { recursive: true });
+  const filename = `screenshots/${Date.now()}-page.png`;
+  await page.screenshot({ path: filename });
+  console.log(`   📸 Screenshot: ${filename}`);
+}
+
 async function main() {
   // Lấy bài cần đăng từ DB
   let content = '';
@@ -480,6 +635,7 @@ async function main() {
   let revertStatus = 'ready_for_groups'; // trạng thái để trả bài về khi thoát sớm/thất bại
   let pageCfg = null;                  // cấu hình Page đích (name/url/cookies) từ DB
   let targetGroupIdsRaw = null;        // JSON mảng id nhóm đích của bài
+  let ownerId = null;                  // chủ bài — quyết định dùng phiên FB cá nhân của ai (đích profile)
 
   if (sql) {
     // Lấy timestamp hiện tại (giây) để so sánh với scheduled_time
@@ -514,10 +670,31 @@ async function main() {
         )
         RETURNING *
       `;
+      if (posts.length > 0) {
+        dest = 'groups';
+        revertStatus = 'ready_for_groups';
+      } else {
+        // Ưu tiên 3: đăng lên TƯỜNG CÁ NHÂN của chủ bài (dùng phiên FB riêng của họ).
+        posts = await sql`
+          UPDATE posts SET status = 'profile_posting'
+          WHERE id = (
+            SELECT id FROM posts
+            WHERE status = 'ready_for_profile'
+              AND (scheduled_time IS NULL OR scheduled_time <= ${currentEpoch})
+            ORDER BY id ASC
+            LIMIT 1
+          )
+          RETURNING *
+        `;
+        if (posts.length > 0) {
+          dest = 'profile';
+          revertStatus = 'ready_for_profile';
+        }
+      }
     }
     if (posts.length === 0) {
       if (!global.hasLoggedGroupsQueue) {
-        console.log('⏳ Chưa có bài nào tới lịch Đăng Page/Nhóm (hoặc đang chờ tới giờ hẹn).');
+        console.log('⏳ Chưa có bài nào tới lịch Đăng Page/Nhóm/Cá nhân (hoặc đang chờ tới giờ hẹn).');
         global.hasLoggedGroupsQueue = true;
       }
       return false;
@@ -525,6 +702,7 @@ async function main() {
     const post = posts[0];
     global.hasLoggedGroupsQueue = false;
     postId = post.id;
+    ownerId = post.owner_id;
     content = `${post.content}\n\n${post.hashtags}`;
 
     // Nạp cấu hình Page đích (đa Page) từ DB — cookie/token/tên/URL riêng cho bài này.
@@ -576,22 +754,78 @@ async function main() {
     console.log('⚠️  Chạy test mode (không có DATABASE_URL)');
   }
 
+  // ===== ĐÍCH = PROFILE: đăng lên TƯỜNG CÁ NHÂN của chủ bài (owner) =====
+  // Xử lý TRƯỚC khi mở context persistent dùng chung: đăng cá nhân phải dùng phiên FB
+  // RIÊNG của owner (không phải tài khoản bot). Mở một context EPHEMERAL nạp cookie của
+  // owner, đăng xong rồi ĐÓNG — hoàn toàn tách biệt luồng Page/Nhóm bên dưới.
+  if (dest === 'profile') {
+    const account = await getAccountByOwner(ownerId);
+    const profileCookies = mapCookies(account?.cookies);
+    if (!profileCookies.length) {
+      console.error('❌ Chủ bài chưa kết nối Facebook cá nhân (không có cookie) — cần vào /manage/account để kết nối.');
+      if (postId && sql) await sql`UPDATE posts SET status = 'ready_for_profile' WHERE id = ${postId}`;
+      return true;
+    }
+
+    const pBrowser = await chromium.launch({ headless: false, args: ['--lang=vi-VN'] });
+    const pContext = await pBrowser.newContext({
+      viewport: { width: 1280, height: 800 },
+      locale: 'vi-VN',
+    });
+    try { await pContext.addCookies(profileCookies); } catch {}
+    const pPage = await pContext.newPage();
+    const pIsLoggedOut = makeIsLoggedOut(pPage);
+
+    await pPage.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded' });
+    await delay(3, 5);
+
+    if (await pIsLoggedOut()) {
+      console.error('❌ Cookie Facebook cá nhân của chủ bài đã hết hạn (hoặc bị checkpoint) — trả bài về hàng đợi.');
+      if (postId && sql) await sql`UPDATE posts SET status = 'ready_for_profile' WHERE id = ${postId}`;
+      await pBrowser.close();
+      return true;
+    }
+    console.log('✅ Phiên cá nhân hợp lệ (cookie của chủ bài).\n');
+
+    let profileOk = 0;
+    try {
+      const spunContent = await spinContent(content);
+      await withTimeout(
+        postToProfile(pPage, spunContent, imagePathLocal),
+        4 * 60 * 1000,
+        'đăng trang cá nhân',
+      );
+      profileOk = 1;
+    } catch (err) {
+      console.error('❌ Lỗi đăng trang cá nhân:', err.message);
+      try {
+        fs.mkdirSync('screenshots', { recursive: true });
+        await pPage.screenshot({ path: `screenshots/error-profile-${Date.now()}.png` });
+      } catch {}
+    }
+
+    if (postId && sql) {
+      if (profileOk > 0) {
+        await sql`UPDATE posts SET status = 'posted' WHERE id = ${postId}`;
+        console.log(`\n✅ Cập nhật DB: bài ${postId} → posted (đã lên trang cá nhân)\n`);
+      } else {
+        await sql`UPDATE posts SET status = 'ready_for_profile' WHERE id = ${postId}`;
+        console.log(`\n↩️  Không đăng được trang cá nhân — trả bài ${postId} về 'ready_for_profile' để thử lại.\n`);
+      }
+    }
+
+    await pBrowser.close();
+    console.log(`\n🎉 Hoàn tất Đăng trang cá nhân (${profileOk > 0 ? 'THÀNH CÔNG' : 'THẤT BẠI'}). Sang bài tiếp theo...`);
+    return true;
+  }
+
   // Cookie (từ DB theo Page, hoặc file) — CHỈ dùng để "bootstrap" lần đầu nếu profile
   // chưa đăng nhập. Không bắt buộc: profile cố định mới là nguồn phiên chính.
   let rawCookies = pageCfg?.cookies || null;
   if (!rawCookies && fs.existsSync('cookies.json')) {
     try { rawCookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8')); } catch {}
   }
-  const cookies = (rawCookies || []).map(c => ({
-    name: c.name,
-    value: c.value,
-    domain: c.domain,
-    path: c.path || '/',
-    expires: c.expirationDate || -1,
-    httpOnly: c.httpOnly || false,
-    secure: c.secure || false,
-    sameSite: 'None',
-  }));
+  const cookies = mapCookies(rawCookies);
 
   // Dùng PROFILE CỐ ĐỊNH (persistent) thay cho context trống + nhét cookie:
   // FB tin như trình duyệt thật (giữ localStorage/fingerprint), không đòi login lại.
@@ -607,14 +841,7 @@ async function main() {
   // Kiểm tra cookies còn hợp lệ — không chỉ dò URL 'login' mà còn dò trang
   // checkpoint/đăng nhập (ô mật khẩu, nút "Đăng nhập") vì FB hay chặn bot bằng
   // checkpoint có URL không chứa 'login'.
-  const isLoggedOut = async () => {
-    const u = page.url();
-    if (u.includes('login') || u.includes('checkpoint') || u.includes('/recover')) return true;
-    try {
-      return await page.locator('input[name="pass"], input[type="password"], form[action*="login"]')
-        .first().isVisible({ timeout: 3000 }).catch(() => false);
-    } catch { return false; }
-  };
+  const isLoggedOut = makeIsLoggedOut(page);
 
   await page.goto('https://www.facebook.com', { waitUntil: 'domcontentloaded' });
   await delay(3, 5);

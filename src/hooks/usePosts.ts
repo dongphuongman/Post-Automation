@@ -66,7 +66,7 @@ export function usePosts() {
       return;
     }
 
-    const needsSchedule = postTarget === 'page' || postTarget === 'all';
+    const needsSchedule = postTarget === 'page' || postTarget === 'all' || postTarget === 'profile';
     if (needsSchedule && !scheduleStart) {
       alert('Vui lòng chọn giờ bắt đầu đăng!');
       return;
@@ -99,7 +99,7 @@ export function usePosts() {
         targetGroupIds: target?.groupIds,
       };
 
-      if ((postTarget === 'page' || postTarget === 'all' || postTarget === 'reels') && currentScheduleTime > 0) {
+      if ((postTarget === 'page' || postTarget === 'all' || postTarget === 'reels' || postTarget === 'profile') && currentScheduleTime > 0) {
         payload.scheduledTime = Math.floor(currentScheduleTime / 1000);
       }
 
@@ -123,6 +123,7 @@ export function usePosts() {
     setLoading(false);
     const labels: Record<PostTarget, string> = {
       page: 'lên lịch Facebook Page',
+      profile: 'đăng trang cá nhân',
       groups: 'đăng hội nhóm',
       reels: 'tạo Video Reels',
       all: 'đăng tất cả',

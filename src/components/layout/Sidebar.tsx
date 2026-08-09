@@ -80,6 +80,10 @@ export function Sidebar() {
             <span className="sidebar-icon">📄</span>
             Page
           </Link>
+          <Link href="/manage/account" className={`sidebar-link ${pathname === '/manage/account' ? 'active' : ''}`}>
+            <span className="sidebar-icon">🙍</span>
+            Facebook cá nhân
+          </Link>
           <Link href="/manage/settings" className={`sidebar-link ${pathname === '/manage/settings' ? 'active' : ''}`}>
             <span className="sidebar-icon">⚙️</span>
             Cài đặt

@@ -76,6 +76,18 @@ async function doInitDb() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`;
 
+  // Phiên Facebook CÁ NHÂN theo user (mỗi user 1 phiên): cookie mã hóa để bot đăng
+  // lên tường cá nhân của chính chủ. Owner-scoped qua owner_id.
+  await sql`CREATE TABLE IF NOT EXISTS facebook_accounts (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT,
+    name TEXT,
+    cookies_enc TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  await sql`ALTER TABLE facebook_accounts ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+
   // Nhóm Facebook, gắn với một Page (page_id → facebook_pages.id).
   await sql`CREATE TABLE IF NOT EXISTS facebook_groups (
     id TEXT PRIMARY KEY,
