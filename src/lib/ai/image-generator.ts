@@ -6,10 +6,11 @@ export async function generateImageResponse(topic: string): Promise<string | nul
   if (!apiKey) return null;
 
   try {
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: (await getConfig('IMAGE_BASE_URL')) || (await getConfig('LLM_BASE_URL')) || 'https://api.openai.com/v1',
-    });
+    // SDK OpenAI tự nối "/images/generations" vào baseURL. Chuẩn hóa để phòng khi
+    // config lỡ đặt full path (…/v1/images/generations) → tránh nối đôi → 404.
+    const rawBase = (await getConfig('IMAGE_BASE_URL')) || (await getConfig('LLM_BASE_URL')) || 'https://api.openai.com/v1';
+    const baseURL = rawBase.replace(/\/+(images\/generations|images)\/?$/i, '').replace(/\/$/, '');
+    const openai = new OpenAI({ apiKey, baseURL });
     const imagePrompt = `Create an illustration for a social media post about: "${topic}".
 STYLE: Cinematic concept art or Ghibli-inspired painterly illustration.
 COMPOSITION: Square image (1:1).
@@ -23,9 +24,17 @@ REQUIREMENTS: Very little to no text, absolutely no charts, graphs, bullet point
       quality: 'standard',
     });
 
-    return imgRes.data?.[0]?.url || null;
+    // Provider có thể trả `url` HOẶC `b64_json` (vd proxy/flux) — xử lý cả hai.
+    const item = imgRes.data?.[0];
+    if (item?.url) return item.url;
+    if (item?.b64_json) {
+      const mime = item.b64_json.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+      return `data:${mime};base64,${item.b64_json}`;
+    }
+    return null;
   } catch (error) {
-    console.error('Image generation error:', error);
+    const e = error as { status?: number; message?: string };
+    console.error('Image generation error:', e.status || '', (e.message || String(error)).slice(0, 200));
     return null;
   }
 }
