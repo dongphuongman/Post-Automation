@@ -206,7 +206,7 @@ Cửa sổ Chromium mở ra profile cố định tại `bot/fb-profile/`. Đăng
 
 > ⚠️ Không chạy `login` khi bot đang chạy: cả hai dùng chung một profile.
 
-**Cơ chế hàng đợi:** web app đặt bài sang trạng thái `ready_for_page` / `ready_for_groups` (kèm `scheduled_time`), bot nhặt và chuyển tiếp `page_posting → posted` hoặc `groups_posting → groups_posted`; nếu lỗi sẽ trả về trạng thái `ready_*` để thử lại. Video Reels đi theo cột `video_status`: `pending → completed`.
+**Cơ chế hàng đợi:** web app đặt bài sang trạng thái `ready_for_<đích>` (kèm `scheduled_time`), bot nhặt, chuyển sang `<đích>_posting` rồi `posted` (hoặc `groups_posted`); nếu lỗi / không xác nhận đăng được sẽ trả về `ready_*` để thử lại. Các đích: `page`, `groups`, `profile` (Facebook cá nhân), `x`, `threads`, `instagram`. **Threads** đăng qua Graph API (không mở trình duyệt); **X / Instagram / cá nhân** mở phiên Chromium ephemeral nạp cookie riêng của chủ bài. Video Reels đi theo cột `video_status`: `pending → completed`.
 
 Các lệnh có sẵn:
 
@@ -249,7 +249,9 @@ Sau khi chạy `npm run dev` và mở http://localhost:3000:
 0. **Đăng nhập** — dùng `admin@local` / `admin123` (đổi mật khẩu ngay ở `/profile`).
 1. **Thu thập tin** — Bấm thu thập để crawl tin tức từ RSS / Brave Search / RapidAPI theo nguồn.
 2. **Chọn & Viết bài** — Chọn tin, AI viết bài theo giọng văn (format POV / News), tự sinh ảnh minh họa.
-3. **Duyệt & Đăng** — Duyệt nội dung rồi đăng Facebook **Page / Group / Reels** (đăng ngay hoặc hẹn lịch), kèm video Reels nếu cần.
+3. **Duyệt & Đăng** — Duyệt nội dung rồi đăng **Facebook (Page / Group / Reels / cá nhân)** hoặc **X / Threads / Instagram** (đăng ngay hoặc hẹn lịch), kèm video Reels nếu cần. Ảnh AI lỗi có thể bấm **🔄 Tạo lại ảnh** ngay trên thẻ bài. Lưu ý: **Instagram bắt buộc có ảnh**; X cắt ≤ 280 ký tự, Threads ≤ 500, Instagram ≤ 2200.
+
+> 🔗 **Kết nối tài khoản trước khi đăng cá nhân/X/Threads/IG:** vào `/manage/account` dán cookie Facebook cá nhân, và `/manage/social` dán cookie X (`auth_token`+`ct0`) / Instagram (`sessionid`) / access token Threads. Mỗi người dùng kết nối tài khoản của **chính mình**; nếu chưa kết nối (hoặc cookie hết hạn) bot sẽ trả bài về hàng đợi kèm log rõ.
 
 ### 8.1. Trang quản trị (`/manage/*`)
 
@@ -258,6 +260,8 @@ Sau khi chạy `npm run dev` và mở http://localhost:3000:
 | `/manage/sources` | Quản lý nguồn thu thập tin (RSS / social) |
 | `/manage/pages` | Quản lý Facebook Page — lưu access token & cookie (mã hóa) |
 | `/manage/groups` | Quản lý Facebook Group gắn với Page |
+| `/manage/account` | Kết nối **Facebook cá nhân** của bạn (cookie, mã hóa) để đăng lên tường cá nhân |
+| `/manage/social` | Kết nối **X · Threads · Instagram** của bạn (cookie/token, mã hóa) |
 | `/manage/settings` | Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — **chỉ admin** |
 | `/manage/users` | Quản lý người dùng & phân quyền — **chỉ admin** |
 | `/dashboard` | Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây |
@@ -277,6 +281,8 @@ Sau khi chạy `npm run dev` và mở http://localhost:3000:
 | Không thu thập được tin mạng xã hội | Cần điền `RAPID_API_KEY` và/hoặc `BRAVE_API_KEY`. |
 | Không đăng được Facebook Page | Kiểm tra Page ở `/manage/pages` (token/cookie) hoặc `FACEBOOK_*` trong `.env`. |
 | Bot không đăng Group / không nhặt bài | Đảm bảo bot đang chạy (`npm run post`), đã `npm run login`, dùng cùng DB + cùng `APP_ENCRYPTION_KEY` với web app, và bài đã ở trạng thái `ready_for_groups` với `scheduled_time` đã đến hạn. |
+| Không đăng được X / Threads / Instagram / cá nhân | Chủ bài chưa kết nối tài khoản ở `/manage/social` (hoặc `/manage/account`), hoặc cookie/token đã hết hạn/bị checkpoint → bot trả bài về `ready_for_*`. Kết nối lại cookie/token mới. **Instagram**: bài phải có ảnh. **Threads**: cần access token (không phải cookie) và ảnh phải là URL public. Xem ảnh chụp lỗi trong `bot/screenshots/`. |
+| Bài đăng lên Page/Group nhưng **thiếu ảnh** | Ảnh phải nằm ở `selected_image_url`/`generated_image_url`/`original_image_url`. Nếu ảnh AI lỗi (ô "AI tạo" trống), bấm **🔄 Tạo lại ảnh** ở bước 3. Bot chạy trong CWD có quyền ghi thư mục `screenshots/`. |
 | Bot Playwright báo thiếu trình duyệt | Chạy `npm run install-browser` trong thư mục `bot/`. |
 | Render video lỗi | Cài FFmpeg và chạy `npm install` trong `bot/video-maker/`. |
 | Bảng DB chưa có | Gọi API bất kỳ (mở trang chính / đăng nhập) để `initDb()` tự tạo 7 bảng. |

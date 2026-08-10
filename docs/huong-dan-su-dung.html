@@ -505,7 +505,7 @@
     <section class="section" id="overview">
       <h2><span class="num">01</span> Tổng quan hệ thống</h2>
       <p>
-        Marketing Automation là công cụ web giúp tự động hóa toàn bộ quy trình tạo nội dung Facebook marketing. Hệ thống sử dụng AI để cào tin tức, viết lại nội dung tiếng Việt, tạo ảnh minh họa, và đăng bài lên Facebook Page, nhóm (Groups), và Reels.
+        Marketing Automation là công cụ web giúp tự động hóa toàn bộ quy trình tạo nội dung marketing. Hệ thống sử dụng AI để cào tin tức, viết lại nội dung tiếng Việt, tạo ảnh minh họa, và đăng bài lên <strong>Facebook (Page, Groups, Reels, tường cá nhân)</strong> cùng <strong>X, Threads, Instagram</strong>.
       </p>
 
       <div class="pipeline-steps">
@@ -537,7 +537,7 @@
             <tr><td>Tạo ảnh</td><td>OpenAI DALL-E 3 (hoặc tương thích)</td><td>Tạo ảnh minh họa 1024&times;1024</td></tr>
             <tr><td>Video</td><td>Remotion + OpenAI TTS</td><td>Tạo video Reels với voiceover</td></tr>
             <tr><td>Database</td><td>Neon Postgres (serverless)</td><td>Lưu trữ dữ liệu</td></tr>
-            <tr><td>Facebook</td><td>Graph API v21.0 + Playwright</td><td>Đăng bài Page, Groups, Reels</td></tr>
+            <tr><td>Mạng xã hội</td><td>Facebook Graph API v21.0 · Threads Graph API · Playwright</td><td>Đăng Facebook (Page/Group/Reels/cá nhân), X, Threads, Instagram</td></tr>
             <tr><td>Cào tin</td><td>RSS Parser, RapidAPI, Brave Search</td><td>Thu thập tin từ nhiều nguồn</td></tr>
           </tbody>
         </table>
@@ -688,6 +688,8 @@ Password: admin123</code></pre>
             <tr><td><code>/manage/sources</code></td><td>Quản lý nguồn thu thập tin (RSS / social)</td></tr>
             <tr><td><code>/manage/pages</code></td><td>Quản lý Facebook Page — lưu access token &amp; cookie (mã hóa)</td></tr>
             <tr><td><code>/manage/groups</code></td><td>Quản lý Facebook Group gắn với Page</td></tr>
+            <tr><td><code>/manage/account</code></td><td>Kết nối <strong>Facebook cá nhân</strong> của bạn (cookie, mã hóa) để đăng lên tường cá nhân</td></tr>
+            <tr><td><code>/manage/social</code></td><td>Kết nối <strong>X · Threads · Instagram</strong> của bạn (cookie/token, mã hóa)</td></tr>
             <tr><td><code>/manage/settings</code></td><td>Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — <strong>chỉ admin</strong></td></tr>
             <tr><td><code>/manage/users</code></td><td>Quản lý người dùng &amp; phân quyền — <strong>chỉ admin</strong></td></tr>
             <tr><td><code>/dashboard</code></td><td>Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây (tách <strong>Chưa đăng</strong> / <strong>Đã đăng</strong>)</td></tr>
@@ -789,13 +791,18 @@ Password: admin123</code></pre>
             <tr><td><strong>Nhóm</strong></td><td>Đánh dấu để bot đăng vào các nhóm</td><td>Cần chạy bot riêng (xem mục Bot)</td></tr>
             <tr><td><strong>Tất cả</strong></td><td>Đăng Page + đánh dấu cho nhóm</td><td>Kết hợp cả hai</td></tr>
             <tr><td><strong>Reels</strong></td><td>Tạo video Reels và đăng lên Page</td><td>Cần chạy bot (video mất 2–5 phút/bài)</td></tr>
+            <tr><td><strong>Cá nhân</strong></td><td>Đánh dấu để bot đăng lên tường Facebook cá nhân</td><td>Kết nối cookie FB ở <code>/manage/account</code></td></tr>
+            <tr><td><strong>𝕏</strong></td><td>Đánh dấu để bot đăng lên X/Twitter</td><td>Cookie ở <code>/manage/social</code>; cắt ≤ 280 ký tự</td></tr>
+            <tr><td><strong>Threads</strong></td><td>Đăng lên Threads qua API chính thức</td><td>Access token ở <code>/manage/social</code>; ≤ 500 ký tự, ảnh cần URL public</td></tr>
+            <tr><td><strong>Instagram</strong></td><td>Đánh dấu để bot đăng lên Instagram</td><td>Cookie ở <code>/manage/social</code>; ≤ 2200 ký tự, <strong>bắt buộc có ảnh</strong></td></tr>
             <tr><td style="color:var(--danger)"><strong>Xoá</strong></td><td>Xoá vĩnh viễn bài đã chọn</td><td>Có hộp thoại xác nhận</td></tr>
           </tbody>
         </table>
       </div>
+      <p>Mỗi thẻ bài có ô chọn ảnh <strong>Ảnh gốc</strong> / <strong>AI tạo</strong>. Nếu ảnh AI lỗi (ô "AI tạo" trống), bấm nút <strong>🔄 Tạo lại ảnh</strong> (hoặc <strong>✨ Tạo ảnh AI</strong>) trên thẻ để sinh lại mà không phải viết lại bài.</p>
 
       <h3>Vòng đời trạng thái bài viết</h3>
-      <p>Web app đặt bài vào hàng đợi; bot nhặt theo trạng thái. Luồng đăng Page và đăng Group tách riêng:</p>
+      <p>Web app đặt bài vào hàng đợi <code>ready_for_&lt;đích&gt;</code>; bot nhặt theo trạng thái, chuyển <code>&lt;đích&gt;_posting → posted</code> (hoặc <code>groups_posted</code>). Mỗi đích một luồng riêng:</p>
       <div class="flow">
         <span class="flow-node">draft</span>
         <span class="flow-arrow">&rarr;</span>
@@ -804,7 +811,7 @@ Password: admin123</code></pre>
         <span class="flow-node">page_posting</span>
         <span class="flow-arrow">&rarr;</span>
         <span class="flow-node">posted</span>
-        <span style="color:var(--text-muted);margin-left:8px;">(đăng Page — Graph API)</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(Page — bot Playwright, profile cố định)</span>
       </div>
       <div class="flow">
         <span class="flow-node">draft</span>
@@ -814,9 +821,49 @@ Password: admin123</code></pre>
         <span class="flow-node">groups_posting</span>
         <span class="flow-arrow">&rarr;</span>
         <span class="flow-node">groups_posted</span>
-        <span style="color:var(--text-muted);margin-left:8px;">(đăng Group — bot Playwright)</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(Group — bot Playwright)</span>
       </div>
-      <p>Video Reels đi theo cột riêng <code>video_status</code>: <code>none &rarr; pending &rarr; completed</code> (hoặc <code>error</code>), bật bằng cờ <code>create_video</code>. Nếu bot gặp lỗi, bài được trả về trạng thái <code>ready_*</code> để thử lại.</p>
+      <div class="flow">
+        <span class="flow-node">draft</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">ready_for_profile</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">profile_posting</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">posted</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(Facebook cá nhân — cookie riêng user)</span>
+      </div>
+      <div class="flow">
+        <span class="flow-node">draft</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">ready_for_x</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">x_posting</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">posted</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(X/Twitter — cookie riêng user)</span>
+      </div>
+      <div class="flow">
+        <span class="flow-node">draft</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">ready_for_threads</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">threads_posting</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">posted</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(Threads — access token, Graph API)</span>
+      </div>
+      <div class="flow">
+        <span class="flow-node">draft</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">ready_for_instagram</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">instagram_posting</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-node">posted</span>
+        <span style="color:var(--text-muted);margin-left:8px;">(Instagram — cookie riêng user, bắt buộc ảnh)</span>
+      </div>
+      <p>Target <strong>Tất cả</strong> đăng Page ngay qua <strong>Graph API</strong> (→ <code>posted</code>) đồng thời đẩy sang <code>ready_for_groups</code> cho bot. Video Reels đi theo cột riêng <code>video_status</code>: <code>none &rarr; pending &rarr; completed</code> (hoặc <code>error</code>), bật bằng cờ <code>create_video</code>. Bot chỉ đánh <code>posted</code> khi xác nhận đăng thành công (toast X / màn "đã chia sẻ" IG); nếu lỗi/không xác nhận thì trả về <code>ready_*</code> kèm ảnh lỗi trong <code>bot/screenshots/</code> để thử lại.</p>
 
       <h3>Lịch sử đăng bài</h3>
       <p>Phần <strong>Lịch sử</strong> phía dưới hiển thị các bài đã đăng/đang xử lý với trạng thái tương ứng:</p>

@@ -94,7 +94,9 @@ Dùng khi muốn khai báo cấu hình dạng compose (hoặc mở rộng thêm 
 
 ## 7. Bot đăng Facebook (chạy riêng)
 
-Bot (`bot/`) chạy **tách khỏi** web app (đọc/ghi cùng database nên tự nhặt bài web app đẩy sang `ready_for_*`). Nó dùng Playwright `headless: false` + một **profile Chromium đã đăng nhập Facebook** (`bot/fb-profile/`). Có 2 cách chạy:
+Bot (`bot/`) chạy **tách khỏi** web app (đọc/ghi cùng database nên tự nhặt bài web app đẩy sang `ready_for_*`). Nó dùng Playwright `headless: false` + một **profile Chromium đã đăng nhập Facebook** (`bot/fb-profile/`) cho đăng Page/Group. Có 2 cách chạy:
+
+> 🌐 **Đăng Trang cá nhân / X / Instagram** dùng cookie riêng của từng người dùng (bảng `facebook_accounts` / `social_accounts`, do user kết nối ở `/manage/account` & `/manage/social`) — bot mở **phiên Chromium ephemeral** nạp cookie đó rồi đóng, không đụng profile cố định. **Threads** đăng qua Graph API (không cần trình duyệt). Các phiên ephemeral này vẫn cần Xvfb như phần dưới, và **không** cần `npm run login`. Bảo đảm bot có cùng `APP_ENCRYPTION_KEY` với web app để giải mã cookie/token, và CWD ghi được thư mục `screenshots/`.
 
 ### Cách 1 — Máy có màn hình (đơn giản nhất)
 

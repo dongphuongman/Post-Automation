@@ -704,7 +704,7 @@ npm run install-browser      # Cài trình duyệt Chromium cho Playwright</code
       </div>
 
       <h4>Cơ chế hàng đợi</h4>
-      <p>Web app đặt bài sang trạng thái <code>ready_for_page</code> / <code>ready_for_groups</code> (kèm <code>scheduled_time</code>), bot nhặt và chuyển tiếp <code>page_posting → posted</code> hoặc <code>groups_posting → groups_posted</code>; nếu lỗi sẽ trả về trạng thái <code>ready_*</code> để thử lại. Video Reels đi theo cột <code>video_status</code>: <code>pending → completed</code>.</p>
+      <p>Web app đặt bài sang trạng thái <code>ready_for_&lt;đích&gt;</code> (kèm <code>scheduled_time</code>), bot nhặt, chuyển <code>&lt;đích&gt;_posting → posted</code> (hoặc <code>groups_posted</code>); nếu lỗi / không xác nhận đăng được sẽ trả về <code>ready_*</code> để thử lại. Các đích: <code>page</code>, <code>groups</code>, <code>profile</code> (Facebook cá nhân), <code>x</code>, <code>threads</code>, <code>instagram</code>. <strong>Threads</strong> đăng qua Graph API (không mở trình duyệt); <strong>X / Instagram / cá nhân</strong> mở phiên Chromium ephemeral nạp cookie riêng của chủ bài (kết nối ở <code>/manage/social</code> &amp; <code>/manage/account</code>). Video Reels đi theo cột <code>video_status</code>: <code>pending → completed</code>.</p>
 
       <h4>Các lệnh có sẵn</h4>
       <div class="table-wrap">
@@ -758,7 +758,7 @@ npm run build         # Render video ra out/video.mp4</code></pre>
         <div class="p-step">
           <div class="p-step-num">3</div>
           <div class="p-step-title">Duyệt &amp; Đăng</div>
-          <div class="p-step-desc">Đăng Facebook Page/Group/Reels (ngay hoặc hẹn lịch), kèm video Reels.</div>
+          <div class="p-step-desc">Đăng Facebook Page/Group/Reels/cá nhân + X/Threads/Instagram (ngay hoặc hẹn lịch), kèm video Reels. Ảnh AI lỗi có thể bấm 🔄 Tạo lại ảnh.</div>
         </div>
       </div>
       <div class="flow">
@@ -781,6 +781,8 @@ npm run build         # Render video ra out/video.mp4</code></pre>
             <tr><td><code>/manage/sources</code></td><td>Quản lý nguồn thu thập tin (RSS / social)</td></tr>
             <tr><td><code>/manage/pages</code></td><td>Quản lý Facebook Page — lưu access token &amp; cookie (mã hóa)</td></tr>
             <tr><td><code>/manage/groups</code></td><td>Quản lý Facebook Group gắn với Page</td></tr>
+            <tr><td><code>/manage/account</code></td><td>Kết nối <strong>Facebook cá nhân</strong> của bạn (cookie, mã hóa) để đăng lên tường cá nhân</td></tr>
+            <tr><td><code>/manage/social</code></td><td>Kết nối <strong>X · Threads · Instagram</strong> của bạn (cookie/token, mã hóa)</td></tr>
             <tr><td><code>/manage/settings</code></td><td>Cấu hình secret hệ thống (LLM, image, scraping…) lưu mã hóa trong DB — <strong>chỉ admin</strong></td></tr>
             <tr><td><code>/manage/users</code></td><td>Quản lý người dùng &amp; phân quyền — <strong>chỉ admin</strong></td></tr>
             <tr><td><code>/dashboard</code></td><td>Theo dõi hàng đợi bot: số bài theo trạng thái, bài gần đây</td></tr>
@@ -806,7 +808,7 @@ npm run build         # Render video ra out/video.mp4</code></pre>
       </ul>
 
       <h3>9.2. Mã hóa secret</h3>
-      <p>Token/cookie Facebook Page và secret trong <code>app_config</code> được mã hóa <strong>AES-256-GCM</strong> bằng <code>APP_ENCRYPTION_KEY</code>. API không bao giờ trả secret thô — Page chỉ trả cờ <code>has_token</code>/<code>has_cookies</code>.</p>
+      <p>Token/cookie Facebook Page, <strong>cookie FB cá nhân (<code>facebook_accounts</code>)</strong>, <strong>cookie/token X·Threads·Instagram (<code>social_accounts</code>)</strong> và secret trong <code>app_config</code> đều mã hóa <strong>AES-256-GCM</strong> bằng <code>APP_ENCRYPTION_KEY</code>. API không bao giờ trả secret thô — chỉ trả cờ <code>has_token</code>/<code>has_cookies</code>/<code>name</code>.</p>
 
       <h3>9.3. Middleware: security headers &amp; CSRF</h3>
       <p>Mọi response đi qua <code>src/middleware.ts</code> đều gắn header bảo mật, và mọi request ghi (<code>POST/PATCH/DELETE/PUT</code>) tới <code>/api/*</code> bị kiểm tra <strong>CSRF</strong> — header <code>Origin</code> phải khớp <code>Host</code>, không khớp trả <code>403</code>.</p>
@@ -866,6 +868,8 @@ npm run build         # Render video ra out/video.mp4</code></pre>
             <tr><td>Không thu thập được tin mạng xã hội</td><td>Cần điền <code>RAPID_API_KEY</code> và/hoặc <code>BRAVE_API_KEY</code>.</td></tr>
             <tr><td>Không đăng được Facebook Page</td><td>Kiểm tra Page ở <code>/manage/pages</code> (token/cookie) hoặc <code>FACEBOOK_*</code> trong <code>.env</code>.</td></tr>
             <tr><td>Bot không đăng Group / không nhặt bài</td><td>Đảm bảo bot đang chạy (<code>npm run post</code>), đã <code>npm run login</code>, dùng cùng DB + cùng <code>APP_ENCRYPTION_KEY</code> với web app, và bài đã ở trạng thái <code>ready_for_groups</code> với <code>scheduled_time</code> đã đến hạn.</td></tr>
+            <tr><td>Không đăng được X / Threads / Instagram / cá nhân</td><td>Chủ bài chưa kết nối tài khoản ở <code>/manage/social</code> (hoặc <code>/manage/account</code>), hoặc cookie/token đã hết hạn/bị checkpoint → bot trả bài về <code>ready_for_*</code>. Kết nối lại. <strong>Instagram</strong> bắt buộc có ảnh; <strong>Threads</strong> cần access token (không phải cookie) và ảnh phải là URL public. Xem ảnh lỗi trong <code>bot/screenshots/</code>.</td></tr>
+            <tr><td>Bài đăng nhưng <strong>thiếu ảnh</strong></td><td>Nếu ô "AI tạo" trống, bấm <strong>🔄 Tạo lại ảnh</strong> ở bước 3. Bảo đảm bot chạy trong CWD ghi được thư mục <code>screenshots/</code>.</td></tr>
             <tr><td>Bot Playwright báo thiếu trình duyệt</td><td>Chạy <code>npm run install-browser</code> trong thư mục <code>bot/</code>.</td></tr>
             <tr><td>Render video lỗi</td><td>Cài FFmpeg và chạy <code>npm install</code> trong <code>bot/video-maker/</code>.</td></tr>
             <tr><td>Bảng DB chưa có</td><td>Gọi API bất kỳ (mở trang chính / đăng nhập) để <code>initDb()</code> tự tạo 7 bảng.</td></tr>
