@@ -9,6 +9,7 @@ export function usePosts() {
   const [selectedImages, setSelectedImages] = useState<Record<string, ImageType>>({});
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [editedHashtags, setEditedHashtags] = useState<Record<string, string>>({});
+  const [regeneratingIds, setRegeneratingIds] = useState<Set<string>>(new Set());
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -46,6 +47,26 @@ export function usePosts() {
 
   const updateHashtags = useCallback((id: string, hashtags: string) => {
     setEditedHashtags(prev => ({ ...prev, [id]: hashtags }));
+  }, []);
+
+  // Tạo lại ảnh AI cho 1 bài (retry khi lần tạo lúc viết bài bị null). Cập nhật ngay
+  // generated_image_url trong state để UI đổi ảnh mà không cần refetch toàn bộ.
+  const regenerateImage = useCallback(async (id: string) => {
+    setRegeneratingIds(prev => new Set(prev).add(id));
+    try {
+      const res = await fetch('/api/regenerate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: id }),
+      });
+      const data = await res.json();
+      if (!data.success) { alert(data.error || 'Không tạo được ảnh'); return; }
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, generated_image_url: data.generated_image_url } : p));
+      setSelectedImages(prev => ({ ...prev, [id]: 'generated' }));
+    } catch {
+      alert('Lỗi mạng khi tạo lại ảnh');
+    } finally {
+      setRegeneratingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    }
   }, []);
 
   const batchSchedule = useCallback(async (
@@ -182,11 +203,13 @@ export function usePosts() {
     selectedImages,
     editedContent,
     editedHashtags,
+    regeneratingIds,
     fetchPosts,
     toggleSelection,
     setImageChoice,
     updateContent,
     updateHashtags,
+    regenerateImage,
     batchSchedule,
     deleteSelected,
   };

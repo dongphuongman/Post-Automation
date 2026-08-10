@@ -108,6 +108,8 @@ export default function PipelinePage() {
           onImageChoice={posts.setImageChoice}
           onContentChange={posts.updateContent}
           onHashtagsChange={posts.updateHashtags}
+          onRegenerateImage={posts.regenerateImage}
+          regeneratingIds={posts.regeneratingIds}
           onPublish={handlePublish}
           onDelete={posts.deleteSelected}
           targetPageId={targetPageId}

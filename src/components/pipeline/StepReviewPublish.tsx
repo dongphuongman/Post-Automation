@@ -23,6 +23,8 @@ interface StepReviewPublishProps {
   onImageChoice: (id: string, type: ImageType) => void;
   onContentChange: (id: string, content: string) => void;
   onHashtagsChange: (id: string, hashtags: string) => void;
+  onRegenerateImage: (id: string) => void;
+  regeneratingIds: Set<string>;
   onPublish: (target: PostTarget) => void;
   onDelete: () => void;
   targetPageId: string;
@@ -55,7 +57,9 @@ export function StepReviewPublish(props: StepReviewPublishProps) {
             imageChoice={props.selectedImages[p.id]} editedContent={props.editedContent[p.id]}
             editedHashtags={props.editedHashtags[p.id]} onToggle={props.onTogglePost}
             onImageChoice={props.onImageChoice} onContentChange={props.onContentChange}
-            onHashtagsChange={props.onHashtagsChange} />
+            onHashtagsChange={props.onHashtagsChange}
+            onRegenerateImage={props.onRegenerateImage}
+            regenerating={props.regeneratingIds.has(p.id)} />
         ))}
         {props.draftPosts.length === 0 && (
           <div className="empty-state">

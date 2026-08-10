@@ -12,11 +12,14 @@ interface PostCardProps {
   onImageChoice: (id: string, type: ImageType) => void;
   onContentChange: (id: string, content: string) => void;
   onHashtagsChange: (id: string, hashtags: string) => void;
+  onRegenerateImage: (id: string) => void;
+  regenerating: boolean;
 }
 
 export function PostCard({
   post, selected, imageChoice, editedContent, editedHashtags,
   onToggle, onImageChoice, onContentChange, onHashtagsChange,
+  onRegenerateImage, regenerating,
 }: PostCardProps) {
   return (
     <div className={`card mobile-col ${selected ? 'card-selected' : ''}`}
@@ -57,6 +60,10 @@ export function PostCard({
           selected={imageChoice === 'generated'}
           onClick={() => post.generated_image_url && onImageChoice(post.id, 'generated')}
           disabled={!post.generated_image_url} />
+        <button type="button" className="btn-secondary" style={{ fontSize: 12, padding: '6px 10px', width: '100%' }}
+          disabled={regenerating} onClick={() => onRegenerateImage(post.id)}>
+          {regenerating ? '⏳ Đang tạo…' : (post.generated_image_url ? '🔄 Tạo lại ảnh' : '✨ Tạo ảnh AI')}
+        </button>
       </div>
     </div>
   );
