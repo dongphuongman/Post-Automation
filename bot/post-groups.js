@@ -932,6 +932,10 @@ async function main() {
       try {
         const res = await fetch(imgUrl);
         const buffer = await res.arrayBuffer();
+        // Đảm bảo thư mục tồn tại TRƯỚC khi ghi — nếu không, bài ĐẦU TIÊN (khi CWD
+        // chưa có screenshots/) sẽ ENOENT → ảnh rớt → đăng thiếu ảnh. (fetch hỗ trợ
+        // cả http lẫn data: URI nên chỉ cần lo chỗ ghi file.)
+        fs.mkdirSync('screenshots', { recursive: true });
         imagePathLocal = `screenshots/img_group_${postId}.jpg`;
         fs.writeFileSync(imagePathLocal, Buffer.from(buffer));
       } catch(e) {
