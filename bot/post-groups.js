@@ -655,8 +655,23 @@ async function postToX(page, content, imagePath) {
   const postBtn = page.locator('[data-testid="tweetButton"]').first();
   await postBtn.waitFor({ state: 'visible', timeout: 10000 });
   await postBtn.click();
-  console.log('   ✅ Đã bấm nút đăng tweet.');
+  console.log('   ✅ Đã bấm nút đăng tweet — chờ X xác nhận...');
   await delay(5, 8);
+
+  // Xác nhận đã đăng THẬT (chống false-positive): X hiện toast "Your post was sent"
+  // và trên /compose/post sẽ điều hướng khỏi trang → ô soạn detach. Không thấy tín
+  // hiệu nào → coi như thất bại (trùng nội dung / giới hạn tần suất / lỗi) và NÉM LỖI
+  // để nhánh gọi revert bài về 'ready_for_x'.
+  const confirmed = await Promise.race([
+    page.locator('[data-testid="toast"]').first()
+      .waitFor({ state: 'visible', timeout: 15000 }).then(() => 'toast').catch(() => null),
+    editor.waitFor({ state: 'detached', timeout: 15000 }).then(() => 'closed').catch(() => null),
+  ]);
+  if (!confirmed) {
+    throw new Error('X: không xác nhận được tweet đã đăng (không thấy toast, composer vẫn mở) — có thể trùng nội dung/giới hạn tần suất.');
+  }
+  console.log(`   ✅ Xác nhận đã đăng X (tín hiệu: ${confirmed}).`);
+  await delay(2, 4);
 
   fs.mkdirSync('screenshots', { recursive: true });
   const filename = `screenshots/${Date.now()}-x.png`;
@@ -719,8 +734,21 @@ async function postToInstagram(page, content, imagePath) {
   const share = page.locator('div[role="button"]:has-text("Share"), div[role="button"]:has-text("Chia sẻ"), button:has-text("Share"), button:has-text("Chia sẻ")').first();
   await share.waitFor({ state: 'visible', timeout: 8000 });
   await share.click();
-  console.log('   ✅ Đã bấm Share — chờ IG hoàn tất...');
+  console.log('   ✅ Đã bấm Share — chờ IG xác nhận...');
   await delay(8, 12);
+
+  // Xác nhận đã đăng THẬT (chống false-positive — quan trọng nhất với IG vì các bước
+  // Next/caption ở trên đều best-effort try/catch): IG hiện màn "Your post has been
+  // shared" / "Đã chia sẻ bài viết của bạn". Không thấy trong 25s → NÉM LỖI để nhánh
+  // gọi revert bài về 'ready_for_instagram' (thay vì đánh dấu posted nhầm).
+  const shared = await page.locator(
+    'text=/has been shared|Post shared|đã được chia sẻ|Đã chia sẻ bài viết|bài viết của bạn đã/i'
+  ).first().waitFor({ state: 'visible', timeout: 25000 }).then(() => true).catch(() => false);
+  if (!shared) {
+    throw new Error('Instagram: không thấy xác nhận "đã chia sẻ" sau khi bấm Share — có thể chưa đăng thành công (UI đổi / bị chặn).');
+  }
+  console.log('   ✅ Xác nhận Instagram đã chia sẻ bài.');
+  await delay(2, 4);
 
   fs.mkdirSync('screenshots', { recursive: true });
   const filename = `screenshots/${Date.now()}-instagram.png`;
