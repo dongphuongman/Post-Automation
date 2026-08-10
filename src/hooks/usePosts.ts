@@ -66,7 +66,21 @@ export function usePosts() {
       return;
     }
 
-    const needsSchedule = postTarget === 'page' || postTarget === 'all' || postTarget === 'profile';
+    // Instagram BẮT BUỘC có ảnh: chặn nếu bài đã chọn không có ảnh nào (chọn/tạo/gốc).
+    if (postTarget === 'instagram') {
+      const missing = Array.from(selectedPosts).filter(id => {
+        const p = posts.find(x => x.id === id);
+        if (!p) return false;
+        return !(p.selected_image_url || p.generated_image_url || p.original_image_url);
+      });
+      if (missing.length) {
+        alert(`Instagram bắt buộc phải có ảnh! ${missing.length} bài đang chọn không có ảnh — vui lòng bỏ chọn hoặc thêm ảnh trước khi đăng.`);
+        return;
+      }
+    }
+
+    const needsSchedule = postTarget === 'page' || postTarget === 'all' || postTarget === 'profile'
+      || postTarget === 'x' || postTarget === 'threads' || postTarget === 'instagram';
     if (needsSchedule && !scheduleStart) {
       alert('Vui lòng chọn giờ bắt đầu đăng!');
       return;
@@ -99,7 +113,8 @@ export function usePosts() {
         targetGroupIds: target?.groupIds,
       };
 
-      if ((postTarget === 'page' || postTarget === 'all' || postTarget === 'reels' || postTarget === 'profile') && currentScheduleTime > 0) {
+      if ((postTarget === 'page' || postTarget === 'all' || postTarget === 'reels' || postTarget === 'profile'
+        || postTarget === 'x' || postTarget === 'threads' || postTarget === 'instagram') && currentScheduleTime > 0) {
         payload.scheduledTime = Math.floor(currentScheduleTime / 1000);
       }
 
@@ -127,6 +142,9 @@ export function usePosts() {
       groups: 'đăng hội nhóm',
       reels: 'tạo Video Reels',
       all: 'đăng tất cả',
+      x: 'đăng lên X',
+      threads: 'đăng lên Threads',
+      instagram: 'đăng lên Instagram',
     };
     alert(`Đã ${labels[postTarget]} thành công ${successCount}/${selectedPosts.size} bài viết!`);
     setSelectedPosts(new Set());

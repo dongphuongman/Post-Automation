@@ -31,6 +31,21 @@ async function getAccountByOwner(ownerId) {
   } catch { return null; }
 }
 
+// Credential mạng xã hội (X/Threads/Instagram) của một user (owner) cho 1 platform.
+// Trả { cookies, token } đã giải mã (cookies cho X/IG automation, token cho Threads API).
+async function getSocialAccount(ownerId, platform) {
+  if (!sql || !ownerId || !platform) return null;
+  try {
+    const rows = await sql`SELECT cookies_enc, token_enc FROM social_accounts WHERE owner_id = ${ownerId} AND platform = ${platform} AND active = 1 ORDER BY created_at DESC LIMIT 1`;
+    const a = rows[0];
+    if (!a) return null;
+    let cookies = null, token = null;
+    try { if (a.cookies_enc) cookies = JSON.parse(decrypt(a.cookies_enc)); } catch {}
+    try { if (a.token_enc) token = decrypt(a.token_enc); } catch {}
+    return { cookies, token };
+  } catch { return null; }
+}
+
 async function getGroupUrlsByIds(ids) {
   if (!sql || !Array.isArray(ids) || !ids.length) return [];
   try {
@@ -57,4 +72,4 @@ async function getSetting(key) {
   return process.env[key];
 }
 
-module.exports = { getPageById, getAccountByOwner, getGroupUrlsByIds, getActiveGroupUrlsForPage, getSetting };
+module.exports = { getPageById, getAccountByOwner, getSocialAccount, getGroupUrlsByIds, getActiveGroupUrlsForPage, getSetting };

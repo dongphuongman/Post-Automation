@@ -45,6 +45,27 @@ export async function POST(req: Request) {
       results.profile = { success: true, message: 'Da danh dau cho Bot dang trang ca nhan' };
     }
 
+    // Đăng lên X qua BOT (cookie riêng của user, mở phiên ẩn) — đánh dấu hàng đợi.
+    if (postTarget === 'x') {
+      const ts = scheduledTime || null;
+      await sql`UPDATE posts SET status = 'ready_for_x', scheduled_time = ${ts} WHERE id = ${postId}`;
+      results.x = { success: true, message: 'Da danh dau cho Bot dang X' };
+    }
+
+    // Đăng lên Threads qua API chính thức (bot dùng access token của user).
+    if (postTarget === 'threads') {
+      const ts = scheduledTime || null;
+      await sql`UPDATE posts SET status = 'ready_for_threads', scheduled_time = ${ts} WHERE id = ${postId}`;
+      results.threads = { success: true, message: 'Da danh dau cho Bot dang Threads' };
+    }
+
+    // Đăng lên Instagram qua BOT (cookie riêng, mở phiên ẩn — bắt buộc có ảnh).
+    if (postTarget === 'instagram') {
+      const ts = scheduledTime || null;
+      await sql`UPDATE posts SET status = 'ready_for_instagram', scheduled_time = ${ts} WHERE id = ${postId}`;
+      results.instagram = { success: true, message: 'Da danh dau cho Bot dang Instagram' };
+    }
+
     // Target 'all' vẫn dùng Graph API cho Page (dùng token của Page đích nếu có)
     if (postTarget === 'all') {
       let creds: { pageGraphId: string; token: string } | undefined;

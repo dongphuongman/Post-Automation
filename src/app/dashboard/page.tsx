@@ -28,6 +28,12 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   groups_posting: { label: 'Đang đăng Nhóm', color: '#f59e0b' },
   posted: { label: 'Đã đăng (Page)', color: '#10b981' },
   groups_posted: { label: 'Đã đăng (Nhóm)', color: '#10b981' },
+  ready_for_x: { label: 'Chờ đăng X', color: '#0f172a' },
+  x_posting: { label: 'Đang đăng X', color: '#f59e0b' },
+  ready_for_threads: { label: 'Chờ đăng Threads', color: '#111827' },
+  threads_posting: { label: 'Đang đăng Threads', color: '#f59e0b' },
+  ready_for_instagram: { label: 'Chờ đăng Instagram', color: '#d6249f' },
+  instagram_posting: { label: 'Đang đăng Instagram', color: '#f59e0b' },
 };
 
 function statusLabel(s: string) { return STATUS_META[s]?.label || s; }
@@ -49,7 +55,7 @@ export default function DashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const orderedStatuses = ['ready_for_page', 'ready_for_profile', 'ready_for_groups', 'page_posting', 'profile_posting', 'groups_posting', 'posted', 'groups_posted', 'draft'];
+  const orderedStatuses = ['ready_for_page', 'ready_for_profile', 'ready_for_groups', 'ready_for_x', 'ready_for_threads', 'ready_for_instagram', 'page_posting', 'profile_posting', 'groups_posting', 'x_posting', 'threads_posting', 'instagram_posting', 'posted', 'groups_posted', 'draft'];
 
   const renderPost = (p: RecentPost) => {
     let groupCount = 0;

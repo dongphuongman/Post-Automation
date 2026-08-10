@@ -15,6 +15,9 @@ const BUTTONS: { target: PostTarget; bg: string; icon: string; label: string }[]
   { target: 'groups', bg: '#8b5cf6', icon: '👥', label: 'Nhóm' },
   { target: 'all', bg: '#f59e0b', icon: '🚀', label: 'Tất cả' },
   { target: 'reels', bg: '#ec4899', icon: '🎬', label: 'Reels' },
+  { target: 'x', bg: '#000000', icon: '𝕏', label: 'X' },
+  { target: 'threads', bg: '#111827', icon: '🧵', label: 'Threads' },
+  { target: 'instagram', bg: '#d6249f', icon: '📸', label: 'Instagram' },
 ];
 
 export function PublishActions({ selectedCount, loading, onPublish, onDelete }: PublishActionsProps) {

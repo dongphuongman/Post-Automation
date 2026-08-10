@@ -14,7 +14,7 @@ const { execSync } = require('child_process');
 const FB_PROFILE_DIR = path.resolve(__dirname, 'fb-profile');
 const { sql } = require('./lib/db');
 const { PAGE_NAME, PAGE_URL, GROUPS, FB_API_VERSION } = require('./lib/config');
-const { getPageById, getAccountByOwner, getGroupUrlsByIds, getActiveGroupUrlsForPage } = require('./lib/config-db');
+const { getPageById, getAccountByOwner, getSocialAccount, getGroupUrlsByIds, getActiveGroupUrlsForPage } = require('./lib/config-db');
 const { llmChatCompletion } = require('./lib/llm-fetch');
 
 async function spinContent(originalContent) {
@@ -626,6 +626,138 @@ async function postToProfile(page, content, imagePath) {
   console.log(`   📸 Screenshot: ${filename}`);
 }
 
+// ===== X (Twitter) — automation trên context ephemeral nạp cookie của owner =====
+// Đăng tweet: mở composer, gõ nội dung (CẮT ≤ 280 ký tự cho gói free), đính ảnh nếu
+// có, bấm nút đăng. Selector dựa trên data-testid ổn định của X.
+async function postToX(page, content, imagePath) {
+  const text = (content || '').slice(0, 280);
+  console.log(`\n𝕏 Đăng lên X (${text.length} ký tự)...`);
+  await page.goto('https://x.com/compose/post', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await delay(3, 6);
+
+  const editor = page.locator('[data-testid="tweetTextarea_0"]').first();
+  await editor.waitFor({ state: 'visible', timeout: 15000 });
+  await editor.click();
+  await delay(1, 2);
+  await page.keyboard.type(text, { delay: 15 + Math.random() * 25 });
+  await delay(1, 2);
+
+  if (imagePath && fs.existsSync(imagePath)) {
+    console.log('   📸 Đính ảnh vào tweet...');
+    try {
+      const fileInput = page.locator('input[type="file"][accept*="image"], [data-testid="fileInput"]').first();
+      await fileInput.setInputFiles(imagePath);
+      await delay(4, 7);
+    } catch (e) { console.log('   ⚠️ Không đính được ảnh vào X:', e.message); }
+  }
+
+  await delay(1, 2);
+  const postBtn = page.locator('[data-testid="tweetButton"]').first();
+  await postBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await postBtn.click();
+  console.log('   ✅ Đã bấm nút đăng tweet.');
+  await delay(5, 8);
+
+  fs.mkdirSync('screenshots', { recursive: true });
+  const filename = `screenshots/${Date.now()}-x.png`;
+  await page.screenshot({ path: filename });
+  console.log(`   📸 Screenshot: ${filename}`);
+}
+
+// ===== Instagram — automation web trên context ephemeral nạp cookie của owner =====
+// BẮT BUỘC có ảnh. Luồng web: nút "New post" → upload ảnh → Next x2 (bỏ crop/filter)
+// → dán caption (≤ 2200) → Share. Selector best-effort (UI IG hay đổi) — bọc try/catch.
+async function postToInstagram(page, content, imagePath) {
+  if (!imagePath || !fs.existsSync(imagePath)) {
+    throw new Error('Instagram bắt buộc phải có ảnh — không có ảnh để đăng.');
+  }
+  const caption = (content || '').slice(0, 2200);
+  console.log(`\n📸 Đăng lên Instagram (${caption.length} ký tự caption)...`);
+  await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await delay(4, 7);
+
+  // Mở dialog tạo bài — nút "New post" (icon dấu cộng).
+  const createBtn = page.locator('svg[aria-label="New post"], [aria-label="New post"], svg[aria-label="Bài viết mới"], [aria-label="Bài viết mới"]').first();
+  await createBtn.waitFor({ state: 'visible', timeout: 15000 });
+  await createBtn.click();
+  await delay(2, 4);
+  // Đôi khi có menu con "Post"/"Bài viết" cần bấm tiếp.
+  try {
+    const sub = page.locator('span:has-text("Post"), span:has-text("Bài viết")').first();
+    await sub.waitFor({ state: 'visible', timeout: 3000 });
+    await sub.click();
+    await delay(1, 2);
+  } catch {}
+
+  // Upload ảnh qua input file trong dialog.
+  const fileInput = page.locator('div[role="dialog"] input[type="file"], input[type="file"]').first();
+  await fileInput.setInputFiles(imagePath);
+  console.log('   📸 Đã upload ảnh — chờ IG xử lý...');
+  await delay(4, 7);
+
+  // Next hai lần: bỏ qua crop → bỏ qua filter/edit.
+  for (let i = 0; i < 2; i++) {
+    try {
+      const next = page.locator('div[role="button"]:has-text("Next"), div[role="button"]:has-text("Tiếp"), button:has-text("Next"), button:has-text("Tiếp")').first();
+      await next.waitFor({ state: 'visible', timeout: 8000 });
+      await next.click();
+      console.log(`   ➡️  Bấm Next (${i + 1}/2).`);
+      await delay(2, 4);
+    } catch (e) { console.log(`   ⚠️ Không thấy nút Next (${i + 1}):`, e.message); }
+  }
+
+  // Dán caption.
+  try {
+    const captionBox = page.locator('div[role="dialog"] [contenteditable="true"], textarea[aria-label*="caption"], textarea[aria-label*="chú thích"]').first();
+    await captionBox.waitFor({ state: 'visible', timeout: 8000 });
+    await captionBox.click();
+    await page.keyboard.type(caption, { delay: 8 + Math.random() * 15 });
+    await delay(1, 2);
+  } catch (e) { console.log('   ⚠️ Không nhập được caption:', e.message); }
+
+  // Share.
+  const share = page.locator('div[role="button"]:has-text("Share"), div[role="button"]:has-text("Chia sẻ"), button:has-text("Share"), button:has-text("Chia sẻ")').first();
+  await share.waitFor({ state: 'visible', timeout: 8000 });
+  await share.click();
+  console.log('   ✅ Đã bấm Share — chờ IG hoàn tất...');
+  await delay(8, 12);
+
+  fs.mkdirSync('screenshots', { recursive: true });
+  const filename = `screenshots/${Date.now()}-instagram.png`;
+  await page.screenshot({ path: filename });
+  console.log(`   📸 Screenshot: ${filename}`);
+}
+
+// Đăng lên Threads qua API chính thức (KHÔNG browser). Tạo container rồi publish.
+// Trả { ok, id } — id là creation/media id lưu vào facebook_post_id.
+async function postToThreadsAPI(token, content, originalImageUrl) {
+  const text = (content || '').slice(0, 500);
+  const useImage = typeof originalImageUrl === 'string' && originalImageUrl.startsWith('http');
+
+  // 1) Tạo media container.
+  const createUrl = new URL('https://graph.threads.net/v1.0/me/threads');
+  createUrl.searchParams.set('media_type', useImage ? 'IMAGE' : 'TEXT');
+  createUrl.searchParams.set('text', text);
+  if (useImage) createUrl.searchParams.set('image_url', originalImageUrl);
+  createUrl.searchParams.set('access_token', token);
+
+  const cRes = await fetch(createUrl.toString(), { method: 'POST' });
+  const cData = await cRes.json();
+  if (!cData.id) throw new Error('Threads tạo container lỗi: ' + JSON.stringify(cData));
+
+  await delay(2, 4); // Threads khuyến nghị chờ trước khi publish.
+
+  // 2) Publish container.
+  const pubUrl = new URL('https://graph.threads.net/v1.0/me/threads_publish');
+  pubUrl.searchParams.set('creation_id', cData.id);
+  pubUrl.searchParams.set('access_token', token);
+
+  const pRes = await fetch(pubUrl.toString(), { method: 'POST' });
+  const pData = await pRes.json();
+  if (!pData.id) throw new Error('Threads publish lỗi: ' + JSON.stringify(pData));
+  return { ok: true, id: pData.id };
+}
+
 async function main() {
   // Lấy bài cần đăng từ DB
   let content = '';
@@ -636,6 +768,7 @@ async function main() {
   let pageCfg = null;                  // cấu hình Page đích (name/url/cookies) từ DB
   let targetGroupIdsRaw = null;        // JSON mảng id nhóm đích của bài
   let ownerId = null;                  // chủ bài — quyết định dùng phiên FB cá nhân của ai (đích profile)
+  let originalImageUrl = null;         // URL ảnh gốc (http) — Threads API cần URL public
 
   if (sql) {
     // Lấy timestamp hiện tại (giây) để so sánh với scheduled_time
@@ -692,6 +825,35 @@ async function main() {
         }
       }
     }
+
+    // Ưu tiên tiếp: các nền tảng khác (X / Threads / Instagram). Mỗi platform CLAIM
+    // nguyên tử sang trạng thái tạm '<platform>_posting' để chống đăng trùng.
+    if (posts.length === 0) {
+      const socialClaims = [
+        { ready: 'ready_for_x', posting: 'x_posting', dest: 'x' },
+        { ready: 'ready_for_threads', posting: 'threads_posting', dest: 'threads' },
+        { ready: 'ready_for_instagram', posting: 'instagram_posting', dest: 'instagram' },
+      ];
+      for (const c of socialClaims) {
+        posts = await sql`
+          UPDATE posts SET status = ${c.posting}
+          WHERE id = (
+            SELECT id FROM posts
+            WHERE status = ${c.ready}
+              AND (scheduled_time IS NULL OR scheduled_time <= ${currentEpoch})
+            ORDER BY id ASC
+            LIMIT 1
+          )
+          RETURNING *
+        `;
+        if (posts.length > 0) {
+          dest = c.dest;
+          revertStatus = c.ready;
+          break;
+        }
+      }
+    }
+
     if (posts.length === 0) {
       if (!global.hasLoggedGroupsQueue) {
         console.log('⏳ Chưa có bài nào tới lịch Đăng Page/Nhóm/Cá nhân (hoặc đang chờ tới giờ hẹn).');
@@ -703,6 +865,7 @@ async function main() {
     global.hasLoggedGroupsQueue = false;
     postId = post.id;
     ownerId = post.owner_id;
+    originalImageUrl = post.original_image_url;
     content = `${post.content}\n\n${post.hashtags}`;
 
     // Nạp cấu hình Page đích (đa Page) từ DB — cookie/token/tên/URL riêng cho bài này.
@@ -816,6 +979,107 @@ async function main() {
 
     await pBrowser.close();
     console.log(`\n🎉 Hoàn tất Đăng trang cá nhân (${profileOk > 0 ? 'THÀNH CÔNG' : 'THẤT BẠI'}). Sang bài tiếp theo...`);
+    return true;
+  }
+
+  // ===== ĐÍCH = THREADS: đăng qua API chính thức (KHÔNG browser) =====
+  // Xử lý TRƯỚC khi mở Chromium (giống profile) — chỉ cần access token của owner.
+  if (dest === 'threads') {
+    const account = await getSocialAccount(ownerId, 'threads');
+    const token = account?.token;
+    if (!token) {
+      console.error('❌ Chủ bài chưa kết nối Threads (không có access token) — vào /manage/social để kết nối.');
+      if (postId && sql) await sql`UPDATE posts SET status = 'ready_for_threads' WHERE id = ${postId}`;
+      return true;
+    }
+    let threadsOk = 0, threadsId = null;
+    try {
+      const spunContent = await spinContent(content);
+      const res = await withTimeout(
+        postToThreadsAPI(token, spunContent, originalImageUrl),
+        4 * 60 * 1000,
+        'đăng Threads (API)',
+      );
+      if (res && res.ok) { threadsOk = 1; threadsId = res.id; }
+    } catch (err) {
+      console.error('❌ Lỗi đăng Threads:', err.message);
+    }
+    if (postId && sql) {
+      if (threadsOk > 0) {
+        await sql`UPDATE posts SET status = 'posted', facebook_post_id = ${threadsId} WHERE id = ${postId}`;
+        console.log(`\n✅ Cập nhật DB: bài ${postId} → posted (đã lên Threads, id=${threadsId})\n`);
+      } else {
+        await sql`UPDATE posts SET status = 'ready_for_threads' WHERE id = ${postId}`;
+        console.log(`\n↩️  Không đăng được Threads — trả bài ${postId} về 'ready_for_threads' để thử lại.\n`);
+      }
+    }
+    console.log(`\n🎉 Hoàn tất Đăng Threads (${threadsOk > 0 ? 'THÀNH CÔNG' : 'THẤT BẠI'}). Sang bài tiếp theo...`);
+    return true;
+  }
+
+  // ===== ĐÍCH = X hoặc INSTAGRAM: automation trên context Chromium EPHEMERAL =====
+  // Nạp cookie RIÊNG của owner cho platform tương ứng, đăng xong rồi ĐÓNG — tách biệt
+  // hoàn toàn khỏi profile cố định của bot (giống nhánh profile).
+  if (dest === 'x' || dest === 'instagram') {
+    const platform = dest; // 'x' | 'instagram'
+    const homeUrl = platform === 'x' ? 'https://x.com/home' : 'https://www.instagram.com/';
+    const account = await getSocialAccount(ownerId, platform);
+    const socialCookies = mapCookies(account?.cookies);
+    if (!socialCookies.length) {
+      console.error(`❌ Chủ bài chưa kết nối ${platform.toUpperCase()} (không có cookie) — vào /manage/social để kết nối.`);
+      if (postId && sql) await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`;
+      return true;
+    }
+    // Instagram bắt buộc có ảnh — nếu không có thì revert luôn, khỏi mở browser.
+    if (platform === 'instagram' && !imagePathLocal) {
+      console.error('❌ Instagram bắt buộc phải có ảnh — bài này không có ảnh. Trả về hàng đợi.');
+      if (postId && sql) await sql`UPDATE posts SET status = 'ready_for_instagram' WHERE id = ${postId}`;
+      return true;
+    }
+
+    const sBrowser = await chromium.launch({ headless: false });
+    const sContext = await sBrowser.newContext({ viewport: { width: 1280, height: 800 } });
+    try { await sContext.addCookies(socialCookies); } catch {}
+    const sPage = await sContext.newPage();
+    const sIsLoggedOut = makeIsLoggedOut(sPage);
+
+    await sPage.goto(homeUrl, { waitUntil: 'domcontentloaded' });
+    await delay(3, 5);
+
+    if (await sIsLoggedOut()) {
+      console.error(`❌ Cookie ${platform.toUpperCase()} của chủ bài đã hết hạn (hoặc bị checkpoint) — trả bài về hàng đợi.`);
+      if (postId && sql) await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`;
+      await sBrowser.close();
+      return true;
+    }
+    console.log(`✅ Phiên ${platform.toUpperCase()} hợp lệ (cookie của chủ bài).\n`);
+
+    let socialOk = 0;
+    try {
+      const spunContent = await spinContent(content);
+      const fn = platform === 'x' ? postToX : postToInstagram;
+      await withTimeout(fn(sPage, spunContent, imagePathLocal), 4 * 60 * 1000, `đăng ${platform}`);
+      socialOk = 1;
+    } catch (err) {
+      console.error(`❌ Lỗi đăng ${platform.toUpperCase()}:`, err.message);
+      try {
+        fs.mkdirSync('screenshots', { recursive: true });
+        await sPage.screenshot({ path: `screenshots/error-${platform}-${Date.now()}.png` });
+      } catch {}
+    }
+
+    if (postId && sql) {
+      if (socialOk > 0) {
+        await sql`UPDATE posts SET status = 'posted' WHERE id = ${postId}`;
+        console.log(`\n✅ Cập nhật DB: bài ${postId} → posted (đã lên ${platform.toUpperCase()})\n`);
+      } else {
+        await sql`UPDATE posts SET status = ${revertStatus} WHERE id = ${postId}`;
+        console.log(`\n↩️  Không đăng được ${platform.toUpperCase()} — trả bài ${postId} về '${revertStatus}' để thử lại.\n`);
+      }
+    }
+
+    await sBrowser.close();
+    console.log(`\n🎉 Hoàn tất Đăng ${platform.toUpperCase()} (${socialOk > 0 ? 'THÀNH CÔNG' : 'THẤT BẠI'}). Sang bài tiếp theo...`);
     return true;
   }
 

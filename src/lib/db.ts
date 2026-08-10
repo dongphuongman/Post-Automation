@@ -88,6 +88,22 @@ async function doInitDb() {
   )`;
   await sql`ALTER TABLE facebook_accounts ADD COLUMN IF NOT EXISTS owner_id TEXT`;
 
+  // Credential đa nền tảng (X / Threads / Instagram) theo user: mỗi (owner, platform)
+  // một hàng. cookies_enc dùng cho X/Instagram (automation), token_enc cho Threads (API).
+  // Owner-scoped, mã hóa như facebook_accounts.
+  await sql`CREATE TABLE IF NOT EXISTS social_accounts (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT,
+    platform TEXT,
+    cookies_enc TEXT,
+    token_enc TEXT,
+    name TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  await sql`ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+  await sql`ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS token_enc TEXT`;
+
   // Nhóm Facebook, gắn với một Page (page_id → facebook_pages.id).
   await sql`CREATE TABLE IF NOT EXISTS facebook_groups (
     id TEXT PRIMARY KEY,

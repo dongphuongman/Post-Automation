@@ -23,7 +23,7 @@ export interface Post {
   original_image_url: string | null;
   facebook_post_id: string | null;
   scheduled_time: number | null;
-  status: 'draft' | 'posted' | 'ready_for_groups' | 'groups_posted' | 'ready_for_profile' | 'profile_posting';
+  status: 'draft' | 'posted' | 'ready_for_groups' | 'groups_posted' | 'ready_for_profile' | 'profile_posting' | 'ready_for_x' | 'x_posting' | 'ready_for_threads' | 'threads_posting' | 'ready_for_instagram' | 'instagram_posting';
   created_at: string;
   create_video: boolean;
   video_status: 'none' | 'pending' | 'completed';
@@ -33,7 +33,7 @@ export interface Post {
 }
 
 export type SourceFilter = 'all' | 'news' | 'x' | 'instagram';
-export type PostTarget = 'page' | 'groups' | 'all' | 'reels' | 'profile';
+export type PostTarget = 'page' | 'groups' | 'all' | 'reels' | 'profile' | 'x' | 'threads' | 'instagram';
 export type ImageType = 'original' | 'generated';
 export type ArticleFormat = 'pov' | 'info';
 

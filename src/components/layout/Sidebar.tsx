@@ -84,6 +84,10 @@ export function Sidebar() {
             <span className="sidebar-icon">🙍</span>
             Facebook cá nhân
           </Link>
+          <Link href="/manage/social" className={`sidebar-link ${pathname === '/manage/social' ? 'active' : ''}`}>
+            <span className="sidebar-icon">🌐</span>
+            Mạng xã hội
+          </Link>
           <Link href="/manage/settings" className={`sidebar-link ${pathname === '/manage/settings' ? 'active' : ''}`}>
             <span className="sidebar-icon">⚙️</span>
             Cài đặt
