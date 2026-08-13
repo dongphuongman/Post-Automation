@@ -46,11 +46,13 @@ export interface PublishPayload {
   overrideHashtags?: string;
   scheduledTime?: number;
   targetPageId?: string;
+  targetPageIds?: string[];
   targetGroupIds?: string[];
 }
 
 export interface PublishTarget {
   pageId?: string;
+  pageIds?: string[];
   groupIds?: string[];
 }
 

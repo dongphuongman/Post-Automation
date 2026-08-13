@@ -137,6 +137,7 @@ export function usePosts() {
         overrideContent: editedContent[id] ?? undefined,
         overrideHashtags: editedHashtags[id] ?? undefined,
         targetPageId: target?.pageId,
+        targetPageIds: target?.pageIds,
         targetGroupIds: target?.groupIds,
       };
 

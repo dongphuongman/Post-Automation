@@ -18,7 +18,7 @@ export default function PipelinePage() {
   const [scheduleStart, setScheduleStart] = useState('');
   const [scheduleInterval, setScheduleInterval] = useState(DEFAULT_SCHEDULE_INTERVAL_HOURS);
   const [createVideo, setCreateVideo] = useState(false);
-  const [targetPageId, setTargetPageId] = useState('');
+  const [targetPageIds, setTargetPageIds] = useState<string[]>([]);
   const [targetGroupIds, setTargetGroupIds] = useState<string[]>([]);
 
   const articles = useArticles();
@@ -62,7 +62,8 @@ export default function PipelinePage() {
 
   const handlePublish = (target: PostTarget) => {
     posts.batchSchedule(target, scheduleStart, scheduleInterval, createVideo, {
-      pageId: targetPageId,
+      pageId: targetPageIds[0],
+      pageIds: targetPageIds,
       groupIds: targetGroupIds,
     });
   };
@@ -113,9 +114,9 @@ export default function PipelinePage() {
           regeneratingIds={posts.regeneratingIds}
           onPublish={handlePublish}
           onDelete={posts.deleteSelected}
-          targetPageId={targetPageId}
+          targetPageIds={targetPageIds}
           targetGroupIds={targetGroupIds}
-          onTargetPageChange={setTargetPageId}
+          onTargetPagesChange={setTargetPageIds}
           onTargetGroupsChange={setTargetGroupIds}
         />
       )}

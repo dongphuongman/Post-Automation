@@ -27,17 +27,17 @@ interface StepReviewPublishProps {
   regeneratingIds: Set<string>;
   onPublish: (target: PostTarget) => void;
   onDelete: () => void;
-  targetPageId: string;
+  targetPageIds: string[];
   targetGroupIds: string[];
-  onTargetPageChange: (id: string) => void;
+  onTargetPagesChange: (ids: string[]) => void;
   onTargetGroupsChange: (ids: string[]) => void;
 }
 
 export function StepReviewPublish(props: StepReviewPublishProps) {
   return (
     <div className="animate-in">
-      <TargetSelector pageId={props.targetPageId} groupIds={props.targetGroupIds}
-        onPageChange={props.onTargetPageChange} onGroupsChange={props.onTargetGroupsChange} />
+      <TargetSelector pageIds={props.targetPageIds} groupIds={props.targetGroupIds}
+        onPagesChange={props.onTargetPagesChange} onGroupsChange={props.onTargetGroupsChange} />
 
       <ScheduleSettings scheduleStart={props.scheduleStart} scheduleInterval={props.scheduleInterval}
         onStartChange={props.onScheduleStartChange} onIntervalChange={props.onScheduleIntervalChange} />

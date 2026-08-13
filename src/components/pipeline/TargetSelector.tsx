@@ -5,23 +5,33 @@ import { usePages } from '@/hooks/usePages';
 import { useGroups } from '@/hooks/useGroups';
 
 interface TargetSelectorProps {
-  pageId: string;
+  pageIds: string[];
   groupIds: string[];
-  onPageChange: (id: string) => void;
+  onPagesChange: (ids: string[]) => void;
   onGroupsChange: (ids: string[]) => void;
 }
 
-export function TargetSelector({ pageId, groupIds, onPageChange, onGroupsChange }: TargetSelectorProps) {
+export function TargetSelector({ pageIds, groupIds, onPagesChange, onGroupsChange }: TargetSelectorProps) {
   const { pages, fetchPages } = usePages();
   const { groups, fetchGroups } = useGroups();
 
   useEffect(() => { fetchPages(); fetchGroups(); }, [fetchPages, fetchGroups]);
+  // Mặc định chọn Page active đầu tiên nếu chưa chọn gì.
   useEffect(() => {
-    if (!pageId && pages.length) onPageChange(pages.find(p => p.active)?.id || pages[0].id);
-  }, [pages, pageId, onPageChange]);
+    if (!pageIds.length && pages.length) {
+      const first = pages.find(p => p.active)?.id || pages[0].id;
+      onPagesChange([first]);
+    }
+  }, [pages, pageIds.length, onPagesChange]);
 
-  const pageGroups = groups.filter(g => g.page_id === pageId && g.active);
+  // Nhóm gắn theo Page CHÍNH (Page đầu tiên được chọn) — dùng cho đích "Nhóm"/"Tất cả".
+  const primary = pageIds[0] || '';
+  const pageGroups = groups.filter(g => g.page_id === primary && g.active);
 
+  const togglePage = (id: string) => {
+    onPagesChange(pageIds.includes(id) ? pageIds.filter(x => x !== id) : [...pageIds, id]);
+    onGroupsChange([]); // đổi Page → reset nhóm (nhóm gắn theo Page chính)
+  };
   const toggleGroup = (id: string) => {
     onGroupsChange(groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id]);
   };
@@ -31,17 +41,31 @@ export function TargetSelector({ pageId, groupIds, onPageChange, onGroupsChange 
       <div className="section-title" style={{ marginBottom: 12 }}>🎯 Đích đăng</div>
 
       <div className="form-group">
-        <label className="form-label">Page</label>
-        <select className="input-field" value={pageId} onChange={e => { onPageChange(e.target.value); onGroupsChange([]); }}>
-          {pages.length === 0 && <option value="">(Chưa có Page — thêm ở mục Quản lý → Page)</option>}
-          {pages.map(p => <option key={p.id} value={p.id} disabled={!p.active}>{p.name}{p.active ? '' : ' (tắt)'}</option>)}
-        </select>
+        <label className="form-label">Page (chọn nhiều — nút "Trang" sẽ đăng vào TẤT CẢ Page đã chọn)</label>
+        {pages.length === 0 ? (
+          <p className="form-hint">Chưa có Page — thêm ở mục Quản lý → Page.</p>
+        ) : (
+          <div className="source-tags">
+            {pages.map(p => (
+              <button key={p.id} disabled={!p.active}
+                className={`tag ${pageIds.includes(p.id) ? 'active' : ''}`}
+                onClick={() => p.active && togglePage(p.id)}>
+                {p.name}{p.active ? '' : ' (tắt)'}
+              </button>
+            ))}
+          </div>
+        )}
+        {pageIds.length > 1 && (
+          <p className="form-hint" style={{ marginTop: 8 }}>
+            Đang chọn {pageIds.length} Page. Nút <strong>Trang</strong> đăng cả {pageIds.length} Page; đích <strong>Nhóm/Tất cả</strong> dùng Page chính (đầu tiên).
+          </p>
+        )}
       </div>
 
       <div className="form-group" style={{ marginBottom: 0 }}>
-        <label className="form-label">Nhóm (chọn nhiều — dùng khi đăng "Nhóm" / "Tất cả")</label>
+        <label className="form-label">Nhóm (chọn nhiều — dùng khi đăng "Nhóm" / "Tất cả", theo Page chính)</label>
         {pageGroups.length === 0 ? (
-          <p className="form-hint">Page này chưa có nhóm đang bật.</p>
+          <p className="form-hint">Page chính chưa có nhóm đang bật.</p>
         ) : (
           <div className="source-tags">
             {pageGroups.map(g => (

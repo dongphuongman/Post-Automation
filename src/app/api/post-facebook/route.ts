@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const s = getSession(req);
     if (!s) return fail('Chưa đăng nhập', 401);
-    const { postId, imageType, scheduledTime, overrideContent, overrideHashtags, postTarget = 'page', createVideo = false, targetPageId, targetGroupIds } = await req.json();
+    const { postId, imageType, scheduledTime, overrideContent, overrideHashtags, postTarget = 'page', createVideo = false, targetPageId, targetPageIds, targetGroupIds } = await req.json();
     const [post] = await sql`SELECT * FROM posts WHERE id = ${postId}`;
     if (!post) return fail('Post not found', 404);
     if (s.role !== 'admin' && post.owner_id !== s.uid) return fail('Không có quyền', 403);
@@ -35,11 +35,27 @@ export async function POST(req: Request) {
 
     const results: any = {};
 
-    // Đăng Page qua BOT Playwright (dùng cookie, không cần token): đánh dấu hàng đợi
+    // Đăng Page qua BOT Playwright (dùng cookie, không cần token): đánh dấu hàng đợi.
+    // Hỗ trợ NHIỀU Page: bài gốc = Page chính (target_page_id đã set ở trên = targetPageId
+    // = Page đầu tiên); mỗi Page còn lại nhân bản thành 1 hàng đợi 'ready_for_page' riêng
+    // (bot vẫn xử lý mỗi hàng 1 Page). Không có targetPageIds → hành xử như cũ (1 Page).
     if (postTarget === 'page') {
       const ts = scheduledTime || null;
+      const pageIds = (Array.isArray(targetPageIds) ? targetPageIds.filter(Boolean) : [])
+        .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i); // loại trùng
       await sql`UPDATE posts SET status = 'ready_for_page', scheduled_time = ${ts} WHERE id = ${postId}`;
-      results.page = { success: true, message: 'Da danh dau cho Bot dang Page' };
+      let cloned = 0;
+      for (const pid of pageIds.slice(1)) {
+        const cloneId = 'p_' + crypto.randomUUID().slice(0, 12);
+        await sql`
+          INSERT INTO posts (id, article_id, format, content, hashtags, generated_image_url, original_image_url, selected_image_url, owner_id, target_page_id, status, scheduled_time, create_video, video_status)
+          SELECT ${cloneId}, article_id, format, content, hashtags, generated_image_url, original_image_url, selected_image_url, owner_id, ${pid}, 'ready_for_page', ${ts}, FALSE, 'none'
+          FROM posts WHERE id = ${postId}
+        `;
+        cloned++;
+      }
+      const total = Math.max(pageIds.length, 1);
+      results.page = { success: true, message: `Da danh dau ${total} Page cho Bot`, pages: total, cloned };
     }
 
     // Đăng lên TƯỜNG CÁ NHÂN của chính user qua BOT Playwright (cookie riêng của user).
