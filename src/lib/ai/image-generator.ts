@@ -10,7 +10,9 @@ export async function generateImageResponse(topic: string): Promise<string | nul
     // config lỡ đặt full path (…/v1/images/generations) → tránh nối đôi → 404.
     const rawBase = (await getConfig('IMAGE_BASE_URL')) || (await getConfig('LLM_BASE_URL')) || 'https://api.openai.com/v1';
     const baseURL = rawBase.replace(/\/+(images\/generations|images)\/?$/i, '').replace(/\/$/, '');
-    const openai = new OpenAI({ apiKey, baseURL });
+    // Fail nhanh: KHÔNG retry (mặc định SDK retry 429 và tuân Retry-After của provider
+    // → treo tới vài phút, nút "Tạo lại ảnh" đứng hình). timeout 60s chặn kết nối treo.
+    const openai = new OpenAI({ apiKey, baseURL, maxRetries: 0, timeout: 60_000 });
     const imagePrompt = `Create an illustration for a social media post about: "${topic}".
 STYLE: Cinematic concept art or Ghibli-inspired painterly illustration.
 COMPOSITION: Square image (1:1).
