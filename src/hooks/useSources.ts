@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { notifyError, confirmDialog } from '@/components/ui/Notify';
 
 export interface Source {
   id: string;
@@ -34,7 +35,7 @@ export function useSources() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi tạo nguồn'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi tạo nguồn'); return false; }
     await fetchSources();
     return true;
   }, [fetchSources]);
@@ -46,7 +47,7 @@ export function useSources() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi cập nhật'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi cập nhật'); return false; }
     await fetchSources();
     return true;
   }, [fetchSources]);
@@ -56,7 +57,7 @@ export function useSources() {
   }, [updateSource]);
 
   const deleteSource = useCallback(async (id: string) => {
-    if (!confirm('Xoá nguồn này?')) return;
+    if (!(await confirmDialog('Xoá nguồn này?', { title: 'Xoá nguồn', confirmText: 'Xoá', danger: true }))) return;
     await fetch(`/api/sources?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     await fetchSources();
   }, [fetchSources]);

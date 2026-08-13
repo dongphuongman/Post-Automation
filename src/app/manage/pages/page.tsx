@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notify } from '@/components/ui/Notify';
 import { usePages, type FbPage } from '@/hooks/usePages';
 
 const empty = { name: '', url: '', page_id: '', access_token: '', cookies: '' };
@@ -13,7 +14,7 @@ export default function ManagePagesPage() {
   useEffect(() => { fetchPages(); }, [fetchPages]);
 
   const submit = async () => {
-    if (!form.name?.trim() || !form.url?.trim()) { alert('Nhập tên và URL Page'); return; }
+    if (!form.name?.trim() || !form.url?.trim()) { notify('Nhập tên và URL Page', 'warning'); return; }
     // Chỉ gửi secret khi người dùng nhập (tránh ghi đè bằng chuỗi rỗng khi sửa).
     const payload: Record<string, string> = { name: form.name, url: form.url, page_id: form.page_id };
     if (form.access_token) payload.access_token = form.access_token;

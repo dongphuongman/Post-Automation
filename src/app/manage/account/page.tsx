@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notify } from '@/components/ui/Notify';
 import { useAccount } from '@/hooks/useAccount';
 
 const empty = { name: '', cookies: '' };
@@ -16,7 +17,7 @@ export default function ManageAccountPage() {
     const payload: Record<string, string> = {};
     if (form.name) payload.name = form.name;
     if (form.cookies) payload.cookies = form.cookies;
-    if (!account && !form.cookies) { alert('Dán Cookies JSON để kết nối'); return; }
+    if (!account && !form.cookies) { notify('Dán Cookies JSON để kết nối', 'warning'); return; }
     const okr = await saveAccount(payload);
     if (okr) setForm(empty);
   };

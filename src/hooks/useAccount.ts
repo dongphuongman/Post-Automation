@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { notifyError, confirmDialog } from '@/components/ui/Notify';
 
 export interface FbAccount {
   id: string;
@@ -34,13 +35,13 @@ export function useAccount() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi lưu tài khoản'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi lưu tài khoản'); return false; }
     await fetchAccount();
     return true;
   }, [fetchAccount]);
 
   const deleteAccount = useCallback(async () => {
-    if (!confirm('Ngắt kết nối Facebook cá nhân?')) return;
+    if (!(await confirmDialog('Ngắt kết nối Facebook cá nhân?', { title: 'Ngắt kết nối', confirmText: 'Ngắt', danger: true }))) return;
     await fetch('/api/account', { method: 'DELETE' });
     await fetchAccount();
   }, [fetchAccount]);

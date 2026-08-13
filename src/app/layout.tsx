@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { NotifyHost } from '@/components/ui/Notify';
 
 export const metadata: Metadata = {
   title: 'Marketing Automation',
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
         </div>
+        <NotifyHost />
       </body>
     </html>
   );

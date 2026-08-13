@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notifySuccess, notifyError } from '@/components/ui/Notify';
 
 export default function ProfilePage() {
   const [me, setMe] = useState<{ email: string; name: string; role: string } | null>(null);
@@ -19,8 +20,8 @@ export default function ProfilePage() {
     if (password) body.password = password;
     const r = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const d = await r.json();
-    if (d.success) { setPassword(''); alert('Đã lưu hồ sơ!'); }
-    else alert(d.error);
+    if (d.success) { setPassword(''); notifySuccess('Đã lưu hồ sơ!'); }
+    else notifyError(d.error);
   };
 
   return (

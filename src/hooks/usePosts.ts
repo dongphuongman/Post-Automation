@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Post, PostTarget, ImageType, PublishPayload, PublishTarget } from '@/types';
 import { MIN_SCHEDULE_AHEAD_MINUTES } from '@/lib/constants';
+import { notify, notifyError, notifySuccess, confirmDialog } from '@/components/ui/Notify';
 
 export function usePosts() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -59,11 +60,12 @@ export function usePosts() {
         body: JSON.stringify({ postId: id }),
       });
       const data = await res.json();
-      if (!data.success) { alert(data.error || 'Không tạo được ảnh'); return; }
+      if (!data.success) { notifyError(data.error || 'Không tạo được ảnh'); return; }
       setPosts(prev => prev.map(p => p.id === id ? { ...p, generated_image_url: data.generated_image_url } : p));
       setSelectedImages(prev => ({ ...prev, [id]: 'generated' }));
+      notifySuccess('Đã tạo lại ảnh AI cho bài viết.');
     } catch {
-      alert('Lỗi mạng khi tạo lại ảnh');
+      notifyError('Lỗi mạng khi tạo lại ảnh');
     } finally {
       setRegeneratingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
@@ -77,13 +79,13 @@ export function usePosts() {
     target?: PublishTarget,
   ) => {
     if (selectedPosts.size === 0) {
-      alert('Vui lòng chọn ít nhất 1 bài để đăng!');
+      notify('Vui lòng chọn ít nhất 1 bài để đăng!', 'warning');
       return;
     }
 
     // Với đích Page/Nhóm/Tất cả cần chọn Page đích (bot đăng theo Page đó).
     if ((postTarget === 'page' || postTarget === 'groups' || postTarget === 'all') && !target?.pageId) {
-      alert('Vui lòng chọn Page đích ở phần "Đích đăng"!');
+      notify('Vui lòng chọn Page đích ở phần "Đích đăng"!', 'warning');
       return;
     }
 
@@ -95,7 +97,7 @@ export function usePosts() {
         return !(p.selected_image_url || p.generated_image_url || p.original_image_url);
       });
       if (missing.length) {
-        alert(`Instagram bắt buộc phải có ảnh! ${missing.length} bài đang chọn không có ảnh — vui lòng bỏ chọn hoặc thêm ảnh trước khi đăng.`);
+        notify(`Instagram bắt buộc phải có ảnh! ${missing.length} bài đang chọn không có ảnh — vui lòng bỏ chọn hoặc thêm ảnh trước khi đăng.`, 'warning');
         return;
       }
     }
@@ -103,15 +105,19 @@ export function usePosts() {
     const needsSchedule = postTarget === 'page' || postTarget === 'all' || postTarget === 'profile'
       || postTarget === 'x' || postTarget === 'threads' || postTarget === 'instagram';
     if (needsSchedule && !scheduleStart) {
-      alert('Vui lòng chọn giờ bắt đầu đăng!');
+      notify('Vui lòng chọn giờ bắt đầu đăng!', 'warning');
       return;
     }
 
     let currentScheduleTime = scheduleStart ? new Date(scheduleStart).getTime() : 0;
-    if (needsSchedule && scheduleStart) {
+    // Ngưỡng "cách hiện tại ≥ N phút" là quy định Facebook cho bài hẹn lịch qua Graph
+    // API — chỉ áp cho đích 'page'/'all'. Group/cá nhân/X/Threads/Instagram do bot tự
+    // đăng (gate scheduled_time <= now) nên cho phép hẹn gần hơn.
+    const graphScheduled = postTarget === 'page' || postTarget === 'all';
+    if (graphScheduled && scheduleStart) {
       const minAhead = Date.now() + MIN_SCHEDULE_AHEAD_MINUTES * 60 * 1000;
       if (currentScheduleTime < minAhead) {
-        alert(`Theo quy định Facebook, giờ hẹn phải cách hiện tại ít nhất ${MIN_SCHEDULE_AHEAD_MINUTES} phút!`);
+        notify(`Theo quy định Facebook, giờ hẹn phải cách hiện tại ít nhất ${MIN_SCHEDULE_AHEAD_MINUTES} phút!`, 'warning');
         return;
       }
     }
@@ -167,7 +173,7 @@ export function usePosts() {
       threads: 'đăng lên Threads',
       instagram: 'đăng lên Instagram',
     };
-    alert(`Đã ${labels[postTarget]} thành công ${successCount}/${selectedPosts.size} bài viết!`);
+    notifySuccess(`Đã ${labels[postTarget]} thành công ${successCount}/${selectedPosts.size} bài viết!`);
     setSelectedPosts(new Set());
     fetchPosts();
   }, [selectedPosts, selectedImages, editedContent, editedHashtags, posts, fetchPosts]);
@@ -175,10 +181,10 @@ export function usePosts() {
   const deleteSelected = useCallback(async () => {
     const ids = Array.from(selectedPosts);
     if (ids.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 bài để xoá!');
+      notify('Vui lòng chọn ít nhất 1 bài để xoá!', 'warning');
       return;
     }
-    if (!confirm(`Bạn có chắc muốn xoá vĩnh viễn ${ids.length} bài viết đã chọn?`)) return;
+    if (!(await confirmDialog(`Bạn có chắc muốn xoá vĩnh viễn ${ids.length} bài viết đã chọn?`, { title: 'Xoá bài viết', confirmText: 'Xoá', danger: true }))) return;
 
     setLoading(true);
     await fetch('/api/posts/delete', {

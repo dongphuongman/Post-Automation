@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { notify, notifyError, confirmDialog } from '@/components/ui/Notify';
 
 interface U { id: string; email: string; name: string; role: string; active: number; }
 
@@ -10,22 +11,22 @@ export default function ManageUsersPage() {
 
   const load = useCallback(async () => {
     const r = await fetch('/api/users'); const d = await r.json();
-    if (d.success) setUsers(d.users); else alert(d.error || 'Không tải được');
+    if (d.success) setUsers(d.users); else notifyError(d.error || 'Không tải được');
   }, []);
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
-    if (!form.email || !form.password) { alert('Cần email + mật khẩu'); return; }
+    if (!form.email || !form.password) { notify('Cần email + mật khẩu', 'warning'); return; }
     const r = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     const d = await r.json();
     if (d.success) { setForm({ email: '', name: '', password: '', role: 'user' }); load(); }
-    else alert(d.error);
+    else notifyError(d.error);
   };
   const patch = async (id: string, body: any) => {
     await fetch('/api/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...body }) });
     load();
   };
-  const del = async (id: string) => { if (confirm('Xóa user này?')) { await fetch(`/api/users?id=${id}`, { method: 'DELETE' }); load(); } };
+  const del = async (id: string) => { if (await confirmDialog('Xóa user này?', { title: 'Xoá người dùng', confirmText: 'Xoá', danger: true })) { await fetch(`/api/users?id=${id}`, { method: 'DELETE' }); load(); } };
   const resetPw = async (id: string) => { const p = prompt('Mật khẩu mới:'); if (p) patch(id, { password: p }); };
 
   return (

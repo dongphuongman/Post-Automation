@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notify, notifySuccess } from '@/components/ui/Notify';
 import { useSettings } from '@/hooks/useSettings';
 
 export default function ManageSettingsPage() {
@@ -16,11 +17,11 @@ export default function ManageSettingsPage() {
     const items = Object.entries(edits)
       .filter(([, v]) => v !== '' && v !== undefined)
       .map(([key, value]) => ({ key, value }));
-    if (items.length === 0) { alert('Chưa có thay đổi nào để lưu.'); return; }
+    if (items.length === 0) { notify('Chưa có thay đổi nào để lưu.', 'warning'); return; }
     setSaving(true);
     const okr = await saveSettings(items);
     setSaving(false);
-    if (okr) { setEdits({}); alert('Đã lưu cài đặt!'); }
+    if (okr) { setEdits({}); notifySuccess('Đã lưu cài đặt!'); }
   };
 
   return (

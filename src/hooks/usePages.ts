@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { notifyError, confirmDialog } from '@/components/ui/Notify';
 
 export interface FbPage {
   id: string;
@@ -42,7 +43,7 @@ export function usePages() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi tạo Page'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi tạo Page'); return false; }
     await fetchPages();
     return true;
   }, [fetchPages]);
@@ -52,7 +53,7 @@ export function usePages() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi cập nhật'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi cập nhật'); return false; }
     await fetchPages();
     return true;
   }, [fetchPages]);
@@ -60,7 +61,7 @@ export function usePages() {
   const toggleActive = useCallback((p: FbPage) => updatePage({ id: p.id, active: p.active ? 0 : 1 }), [updatePage]);
 
   const deletePage = useCallback(async (id: string) => {
-    if (!confirm('Xoá Page này (kèm các nhóm thuộc Page)?')) return;
+    if (!(await confirmDialog('Xoá Page này (kèm các nhóm thuộc Page)?', { title: 'Xoá Page', confirmText: 'Xoá', danger: true }))) return;
     await fetch(`/api/pages?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     await fetchPages();
   }, [fetchPages]);

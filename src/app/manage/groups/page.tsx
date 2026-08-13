@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notify } from '@/components/ui/Notify';
 import { useGroups } from '@/hooks/useGroups';
 import { usePages } from '@/hooks/usePages';
 
@@ -17,8 +18,8 @@ export default function ManageGroupsPage() {
   const pageName = (id: string) => pages.find(p => p.id === id)?.name || id;
 
   const submit = async () => {
-    if (!pageId) { alert('Chọn Page'); return; }
-    if (!url.trim()) { alert('Nhập URL nhóm'); return; }
+    if (!pageId) { notify('Chọn Page', 'warning'); return; }
+    if (!url.trim()) { notify('Nhập URL nhóm', 'warning'); return; }
     const okr = await createGroup({ page_id: pageId, url: url.trim(), name: name.trim() || undefined });
     if (okr) { setUrl(''); setName(''); }
   };

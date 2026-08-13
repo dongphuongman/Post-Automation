@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { notifyError } from '@/components/ui/Notify';
 
 export interface SettingItem {
   key: string;
@@ -32,7 +33,7 @@ export function useSettings() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi lưu cài đặt'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi lưu cài đặt'); return false; }
     await fetchSettings();
     return true;
   }, [fetchSettings]);

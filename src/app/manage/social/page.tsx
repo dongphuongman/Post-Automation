@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notify } from '@/components/ui/Notify';
 import { useSocial, type SocialPlatform, type SocialAccount } from '@/hooks/useSocial';
 
 interface SectionCfg {
@@ -42,7 +43,7 @@ function Section({ cfg, account, save, remove, loading }: {
   const connected = cfg.field === 'cookies' ? account?.has_cookies : account?.has_token;
 
   const submit = async () => {
-    if (!account && !value) { alert('Dán ' + cfg.fieldLabel + ' để kết nối'); return; }
+    if (!account && !value) { notify('Dán ' + cfg.fieldLabel + ' để kết nối', 'warning'); return; }
     await save(cfg.platform, name, value);
     setName(''); setValue('');
   };

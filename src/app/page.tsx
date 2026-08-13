@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { notifyError } from '@/components/ui/Notify';
 import { Stepper } from '@/components/layout/Stepper';
 import { StepResearch } from '@/components/pipeline/StepResearch';
 import { StepSelectArticles } from '@/components/pipeline/StepSelectArticles';
@@ -48,7 +49,7 @@ export default function PipelinePage() {
       });
       setStep(2);
     } catch (err) {
-      alert('Lỗi kết nối mạng khi cào dữ liệu!');
+      notifyError('Lỗi kết nối mạng khi cào dữ liệu!');
     } finally {
       setResearchLoading(false);
     }

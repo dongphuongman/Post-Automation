@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { notifyError, confirmDialog } from '@/components/ui/Notify';
 
 export interface FbGroup {
   id: string;
@@ -31,7 +32,7 @@ export function useGroups() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi tạo nhóm'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi tạo nhóm'); return false; }
     await fetchGroups();
     return true;
   }, [fetchGroups]);
@@ -41,7 +42,7 @@ export function useGroups() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || 'Lỗi cập nhật'); return false; }
+    if (!data.success) { notifyError(data.error || 'Lỗi cập nhật'); return false; }
     await fetchGroups();
     return true;
   }, [fetchGroups]);
@@ -49,7 +50,7 @@ export function useGroups() {
   const toggleActive = useCallback((g: FbGroup) => updateGroup({ id: g.id, active: g.active ? 0 : 1 }), [updateGroup]);
 
   const deleteGroup = useCallback(async (id: string) => {
-    if (!confirm('Xoá nhóm này?')) return;
+    if (!(await confirmDialog('Xoá nhóm này?', { title: 'Xoá nhóm', confirmText: 'Xoá', danger: true }))) return;
     await fetch(`/api/groups?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     await fetchGroups();
   }, [fetchGroups]);

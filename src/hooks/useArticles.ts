@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { notify, notifyError } from '@/components/ui/Notify';
 import type { Article, SourceFilter, ArticleFormat } from '@/types';
 
 export function useArticles() {
@@ -40,12 +41,12 @@ export function useArticles() {
 
   const batchWrite = useCallback(async () => {
     if (selectedArticles.size === 0) {
-      alert('Vui lòng chọn ít nhất 1 bài để viết!');
+      notify('Vui lòng chọn ít nhất 1 bài để viết!', 'warning');
       return false;
     }
     for (const id of selectedArticles) {
       if (!selectedFormat[id]) {
-        alert('Vui lòng chọn định dạng cho tất cả bài đã chọn!');
+        notify('Vui lòng chọn định dạng cho tất cả bài đã chọn!', 'warning');
         return false;
       }
     }
@@ -66,11 +67,11 @@ export function useArticles() {
         setSelectedArticles(new Set());
         return true;
       }
-      alert('Lỗi từ AI:\n' + (data.error || 'Lỗi không xác định'));
+      notifyError('Lỗi từ AI:\n' + (data.error || 'Lỗi không xác định'));
       return false;
     } catch (e: unknown) {
       setLoading(false);
-      alert('Lỗi kết nối mạng: ' + (e instanceof Error ? e.message : String(e)));
+      notifyError('Lỗi kết nối mạng: ' + (e instanceof Error ? e.message : String(e)));
       return false;
     }
   }, [selectedArticles, selectedFormat]);

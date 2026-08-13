@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notify } from '@/components/ui/Notify';
 import { useSources, type Source } from '@/hooks/useSources';
 
 const empty = { name: '', type: 'rss', rss_url: '', url: '' };
@@ -13,7 +14,7 @@ export default function ManageSourcesPage() {
   useEffect(() => { fetchSources(); }, [fetchSources]);
 
   const submit = async () => {
-    if (!form.name?.trim()) { alert('Nhập tên nguồn'); return; }
+    if (!form.name?.trim()) { notify('Nhập tên nguồn', 'warning'); return; }
     const ok = editId
       ? await updateSource({ ...form, id: editId })
       : await createSource(form);

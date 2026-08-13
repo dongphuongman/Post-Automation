@@ -19,7 +19,11 @@ export async function POST(req: Request) {
     const finalHashtags = overrideHashtags ?? post.hashtags;
     const groupIdsJson = Array.isArray(targetGroupIds) && targetGroupIds.length ? JSON.stringify(targetGroupIds) : null;
 
-    if (scheduledTime) {
+    // Ngưỡng "≥ N phút" là quy định Facebook cho bài hẹn lịch qua Graph API — chỉ áp
+    // cho đích 'page'/'all'. Các đích bot tự đăng (profile/x/threads/instagram/groups)
+    // chỉ gate scheduled_time <= now nên không cần ngưỡng này.
+    const graphScheduled = postTarget === 'page' || postTarget === 'all';
+    if (scheduledTime && graphScheduled) {
       const nowEpoch = Math.floor(Date.now() / 1000);
       if (scheduledTime < nowEpoch + MIN_SCHEDULE_AHEAD_MINUTES * 60) {
         return fail(`Thời gian hẹn đăng phải cách hiện tại ít nhất ${MIN_SCHEDULE_AHEAD_MINUTES} phút theo quy định của Facebook.`, 400);
