@@ -50,7 +50,7 @@ export function PostCard({
           value={editedHashtags ?? post.hashtags}
           onChange={e => onHashtagsChange(post.id, e.target.value)} />
       </div>
-      <div className="img-picker mobile-img-col">
+      <div className="img-picker">
         <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Chọn ảnh
         </p>

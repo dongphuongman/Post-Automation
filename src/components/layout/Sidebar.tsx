@@ -99,7 +99,7 @@ export function Sidebar() {
             Page
           </Link>
           <Link href="/manage/account" className={`sidebar-link ${pathname === '/manage/account' ? 'active' : ''}`}>
-            <span className="sidebar-icon">🙍</span>
+            <span className="sidebar-icon">📘</span>
             Facebook cá nhân
           </Link>
           <Link href="/manage/social" className={`sidebar-link ${pathname === '/manage/social' ? 'active' : ''}`}>
