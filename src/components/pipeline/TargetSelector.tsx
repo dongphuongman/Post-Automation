@@ -24,13 +24,18 @@ export function TargetSelector({ pageIds, groupIds, onPagesChange, onGroupsChang
     }
   }, [pages, pageIds.length, onPagesChange]);
 
-  // Nhóm gắn theo Page CHÍNH (Page đầu tiên được chọn) — dùng cho đích "Nhóm"/"Tất cả".
-  const primary = pageIds[0] || '';
-  const pageGroups = groups.filter(g => g.page_id === primary && g.active);
+  // Nhóm đang bật thuộc BẤT KỲ Page nào đã chọn (union) — không chỉ Page đầu tiên,
+  // để nhóm không bị ẩn khi Page có nhóm không phải Page chính.
+  const pageGroups = groups.filter(g => pageIds.includes(g.page_id) && g.active);
 
   const togglePage = (id: string) => {
-    onPagesChange(pageIds.includes(id) ? pageIds.filter(x => x !== id) : [...pageIds, id]);
-    onGroupsChange([]); // đổi Page → reset nhóm (nhóm gắn theo Page chính)
+    const next = pageIds.includes(id) ? pageIds.filter(x => x !== id) : [...pageIds, id];
+    onPagesChange(next);
+    // Bỏ chọn nhóm nào thuộc Page vừa bị bỏ chọn (giữ nhóm của các Page còn chọn).
+    onGroupsChange(groupIds.filter(gid => {
+      const g = groups.find(x => x.id === gid);
+      return g && next.includes(g.page_id);
+    }));
   };
   const toggleGroup = (id: string) => {
     onGroupsChange(groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id]);
@@ -63,9 +68,9 @@ export function TargetSelector({ pageIds, groupIds, onPagesChange, onGroupsChang
       </div>
 
       <div className="form-group" style={{ marginBottom: 0 }}>
-        <label className="form-label">Nhóm (chọn nhiều — dùng khi đăng "Nhóm" / "Tất cả", theo Page chính)</label>
+        <label className="form-label">Nhóm (chọn nhiều — dùng khi đăng "Nhóm" / "Tất cả", theo các Page đã chọn)</label>
         {pageGroups.length === 0 ? (
-          <p className="form-hint">Page chính chưa có nhóm đang bật.</p>
+          <p className="form-hint">{pageIds.length ? 'Các Page đã chọn chưa có nhóm đang bật.' : 'Chưa chọn Page nào.'}</p>
         ) : (
           <div className="source-tags">
             {pageGroups.map(g => (

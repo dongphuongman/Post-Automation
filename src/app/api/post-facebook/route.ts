@@ -30,8 +30,17 @@ export async function POST(req: Request) {
       }
     }
 
+    // Cột target_page_id quyết định Page mà BOT dùng (cookie + chuyển tư cách) khi đăng.
+    // Với đích 'groups', Page này PHẢI là Page sở hữu các nhóm đã chọn (không phải Page
+    // đầu tiên trong ô chọn) — nếu không bot sẽ đăng nhóm dưới sai Page/sai cookie.
+    let effectivePageId: string | null = targetPageId || null;
+    if (postTarget === 'groups' && Array.isArray(targetGroupIds) && targetGroupIds.length) {
+      const [g] = await sql`SELECT page_id FROM facebook_groups WHERE id = ${targetGroupIds[0]}`;
+      if (g?.page_id) effectivePageId = g.page_id;
+    }
+
     // Lưu nội dung + ĐÍCH ĐĂNG (Page + nhóm) để bot biết đăng vào đâu.
-    await sql`UPDATE posts SET content = ${finalContent}, hashtags = ${finalHashtags}, create_video = ${createVideo}, video_status = ${createVideo ? 'pending' : 'none'}, selected_image_url = ${imgUrl}, target_page_id = ${targetPageId || null}, target_group_ids = ${groupIdsJson} WHERE id = ${postId}`;
+    await sql`UPDATE posts SET content = ${finalContent}, hashtags = ${finalHashtags}, create_video = ${createVideo}, video_status = ${createVideo ? 'pending' : 'none'}, selected_image_url = ${imgUrl}, target_page_id = ${effectivePageId}, target_group_ids = ${groupIdsJson} WHERE id = ${postId}`;
 
     const results: any = {};
 
