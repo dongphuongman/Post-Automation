@@ -59,13 +59,13 @@ export function Sidebar() {
           </svg>
         </button>
         <nav className="sidebar-nav">
-          <Link href="/" className={`sidebar-link ${pathname === '/' ? 'active' : ''}`}>
-            <span className="sidebar-icon">⚡</span>
-            Pipeline
-          </Link>
           <Link href="/dashboard" className={`sidebar-link ${pathname === '/dashboard' ? 'active' : ''}`}>
             <span className="sidebar-icon">📊</span>
             Dashboard
+          </Link>
+          <Link href="/" className={`sidebar-link ${pathname === '/' ? 'active' : ''}`}>
+            <span className="sidebar-icon">⚡</span>
+            Pipeline
           </Link>
 
           <div className="sidebar-section-label">Quản lý</div>
