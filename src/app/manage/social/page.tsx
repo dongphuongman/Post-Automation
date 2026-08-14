@@ -31,21 +31,22 @@ const SECTIONS: SectionCfg[] = [
   },
 ];
 
-function Section({ cfg, account, save, remove, loading }: {
+function Section({ cfg, account, save, remove }: {
   cfg: SectionCfg;
   account: SocialAccount | null;
   save: (platform: SocialPlatform, name: string, value: string) => Promise<void>;
   remove: (platform: SocialPlatform) => void;
-  loading: boolean;
 }) {
   const [name, setName] = useState('');
   const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false); // busy theo TỪNG platform (không dùng cờ chung)
   const connected = cfg.field === 'cookies' ? account?.has_cookies : account?.has_token;
 
   const submit = async () => {
     if (!account && !value) { notify('Dán ' + cfg.fieldLabel + ' để kết nối', 'warning'); return; }
-    await save(cfg.platform, name, value);
-    setName(''); setValue('');
+    setSaving(true);
+    try { await save(cfg.platform, name, value); setName(''); setValue(''); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -53,7 +54,7 @@ function Section({ cfg, account, save, remove, loading }: {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <div className="section-title" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {cfg.title}
-          <span className="badge" style={{ background: connected ? '#dcfce7' : '#fee2e2', color: connected ? '#166534' : '#991b1b' }}>
+          <span className="badge" style={{ background: connected ? 'var(--success-bg)' : 'var(--danger-bg)', color: connected ? 'var(--success-fg)' : 'var(--danger-fg)' }}>
             {connected ? '✓ đã kết nối' : 'chưa kết nối'}
           </span>
         </div>
@@ -69,13 +70,13 @@ function Section({ cfg, account, save, remove, loading }: {
         <textarea className="input-field" rows={4} value={value} onChange={e => setValue(e.target.value)}
           placeholder={account ? 'Để trống nếu không đổi' : cfg.placeholder} />
       </div>
-      <button className="btn-primary" onClick={submit} disabled={loading}>{account ? 'Lưu' : 'Kết nối'}</button>
+      <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Đang lưu…' : (account ? 'Lưu' : 'Kết nối')}</button>
     </div>
   );
 }
 
 export default function ManageSocialPage() {
-  const { accounts, loading, fetchAll, saveAccount, deleteAccount } = useSocial();
+  const { accounts, fetchAll, saveAccount, deleteAccount } = useSocial();
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const save = async (platform: SocialPlatform, name: string, value: string) => {
@@ -94,7 +95,7 @@ export default function ManageSocialPage() {
       </div>
       {SECTIONS.map(cfg => (
         <Section key={cfg.platform} cfg={cfg} account={accounts[cfg.platform] || null}
-          save={save} remove={deleteAccount} loading={loading} />
+          save={save} remove={deleteAccount} />
       ))}
     </div>
   );

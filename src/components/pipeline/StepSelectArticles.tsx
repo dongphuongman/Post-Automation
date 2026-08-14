@@ -35,10 +35,17 @@ export function StepSelectArticles({
             format={selectedFormat[a.id]} onToggle={onToggle} onSetFormat={onSetFormat} />
         ))}
         {articles.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-icon">📭</div>
-            <p>Chưa có tin mới. Quay lại bước 1 để quét tin.</p>
-          </div>
+          loading ? (
+            <div className="empty-state">
+              <div className="empty-icon">⏳</div>
+              <p>Đang tải tin…</p>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">📭</div>
+              <p>Chưa có tin mới. Quay lại bước 1 để quét tin.</p>
+            </div>
+          )
         )}
       </div>
     </div>

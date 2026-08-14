@@ -124,6 +124,7 @@ export function usePosts() {
 
     setLoading(true);
     let successCount = 0;
+    let lastError = '';
 
     for (const id of selectedPosts) {
       const p = posts.find(x => x.id === id);
@@ -154,8 +155,10 @@ export function usePosts() {
         });
         const data = await res.json();
         if (data.success) successCount++;
+        else lastError = data.error || lastError;
       } catch (err) {
         console.error(err);
+        lastError = 'Lỗi mạng';
       }
 
       if (needsSchedule && currentScheduleTime > 0) {
@@ -174,7 +177,14 @@ export function usePosts() {
       threads: 'đăng lên Threads',
       instagram: 'đăng lên Instagram',
     };
-    notifySuccess(`Đã ${labels[postTarget]} thành công ${successCount}/${selectedPosts.size} bài viết!`);
+    const total = selectedPosts.size;
+    if (successCount === 0) {
+      notifyError(`Không ${labels[postTarget]} được bài nào${lastError ? `: ${lastError}` : ''}.`);
+    } else if (successCount < total) {
+      notify(`Đã ${labels[postTarget]} ${successCount}/${total} bài — ${total - successCount} bài lỗi${lastError ? `: ${lastError}` : ''}.`, 'warning');
+    } else {
+      notifySuccess(`Đã ${labels[postTarget]} thành công ${successCount}/${total} bài viết!`);
+    }
     setSelectedPosts(new Set());
     fetchPosts();
   }, [selectedPosts, selectedImages, editedContent, editedHashtags, posts, fetchPosts]);

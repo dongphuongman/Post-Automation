@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { notifyError, confirmDialog } from '@/components/ui/Notify';
+import { notifyError, notifySuccess, confirmDialog } from '@/components/ui/Notify';
 
 export interface Source {
   id: string;
@@ -36,6 +36,7 @@ export function useSources() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi tạo nguồn'); return false; }
+    notifySuccess('Đã thêm nguồn tin');
     await fetchSources();
     return true;
   }, [fetchSources]);
@@ -48,6 +49,7 @@ export function useSources() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi cập nhật'); return false; }
+    notifySuccess('Đã cập nhật nguồn');
     await fetchSources();
     return true;
   }, [fetchSources]);
@@ -59,6 +61,7 @@ export function useSources() {
   const deleteSource = useCallback(async (id: string) => {
     if (!(await confirmDialog('Xoá nguồn này?', { title: 'Xoá nguồn', confirmText: 'Xoá', danger: true }))) return;
     await fetch(`/api/sources?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    notifySuccess('Đã xoá nguồn');
     await fetchSources();
   }, [fetchSources]);
 

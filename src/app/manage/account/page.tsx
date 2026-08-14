@@ -9,6 +9,7 @@ const empty = { name: '', cookies: '' };
 export default function ManageAccountPage() {
   const { account, loading, fetchAccount, saveAccount, deleteAccount } = useAccount();
   const [form, setForm] = useState<Record<string, string>>(empty);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchAccount(); }, [fetchAccount]);
 
@@ -18,7 +19,9 @@ export default function ManageAccountPage() {
     if (form.name) payload.name = form.name;
     if (form.cookies) payload.cookies = form.cookies;
     if (!account && !form.cookies) { notify('Dán Cookies JSON để kết nối', 'warning'); return; }
+    setSaving(true);
     const okr = await saveAccount(payload);
+    setSaving(false);
     if (okr) setForm(empty);
   };
 
@@ -34,7 +37,7 @@ export default function ManageAccountPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ fontWeight: 700, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {account.name}
-              <span className="badge" style={{ background: account.has_cookies ? '#dcfce7' : '#fee2e2', color: account.has_cookies ? '#166534' : '#991b1b' }}>
+              <span className="badge" style={{ background: account.has_cookies ? 'var(--success-bg)' : 'var(--danger-bg)', color: account.has_cookies ? 'var(--success-fg)' : 'var(--danger-fg)' }}>
                 {account.has_cookies ? '🍪 đã kết nối' : 'thiếu cookie'}
               </span>
             </div>
@@ -54,7 +57,7 @@ export default function ManageAccountPage() {
           <textarea className="input-field" rows={5} value={form.cookies} onChange={e => setForm({ ...form, cookies: e.target.value })}
             placeholder={account ? 'Để trống nếu không đổi' : '[{"name":"c_user",...}]'} />
         </div>
-        <button className="btn-primary" onClick={submit} disabled={loading}>{account ? 'Lưu' : 'Kết nối'}</button>
+        <button className="btn-primary" onClick={submit} disabled={saving || loading}>{saving ? 'Đang lưu…' : (account ? 'Lưu' : 'Kết nối')}</button>
       </div>
     </div>
   );

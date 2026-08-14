@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { notifyError, confirmDialog } from '@/components/ui/Notify';
+import { notifyError, notifySuccess, confirmDialog } from '@/components/ui/Notify';
 
 export interface FbGroup {
   id: string;
@@ -33,6 +33,7 @@ export function useGroups() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi tạo nhóm'); return false; }
+    notifySuccess('Đã thêm nhóm');
     await fetchGroups();
     return true;
   }, [fetchGroups]);
@@ -43,6 +44,7 @@ export function useGroups() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi cập nhật'); return false; }
+    notifySuccess('Đã cập nhật nhóm');
     await fetchGroups();
     return true;
   }, [fetchGroups]);
@@ -52,6 +54,7 @@ export function useGroups() {
   const deleteGroup = useCallback(async (id: string) => {
     if (!(await confirmDialog('Xoá nhóm này?', { title: 'Xoá nhóm', confirmText: 'Xoá', danger: true }))) return;
     await fetch(`/api/groups?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    notifySuccess('Đã xoá nhóm');
     await fetchGroups();
   }, [fetchGroups]);
 

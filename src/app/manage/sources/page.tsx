@@ -10,20 +10,24 @@ export default function ManageSourcesPage() {
   const { sources, loading, fetchSources, createSource, updateSource, toggleActive, deleteSource } = useSources();
   const [form, setForm] = useState<Partial<Source>>(empty);
   const [editId, setEditId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchSources(); }, [fetchSources]);
 
   const submit = async () => {
     if (!form.name?.trim()) { notify('Nhập tên nguồn', 'warning'); return; }
+    setSaving(true);
     const ok = editId
       ? await updateSource({ ...form, id: editId })
       : await createSource(form);
+    setSaving(false);
     if (ok) { setForm(empty); setEditId(null); }
   };
 
   const startEdit = (s: Source) => {
     setEditId(s.id);
     setForm({ name: s.name, type: s.type, rss_url: s.rss_url || '', url: s.url || '' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -36,7 +40,7 @@ export default function ManageSourcesPage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="section-title" style={{ marginBottom: 14 }}>{editId ? 'Sửa nguồn' : 'Thêm nguồn mới'}</div>
         <div className="form-group">
-          <label className="form-label">Tên nguồn</label>
+          <label className="form-label">Tên nguồn <span className="form-req">*</span></label>
           <input className="input-field" value={form.name || ''}
             onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: TechCrunch" />
         </div>
@@ -61,7 +65,7 @@ export default function ManageSourcesPage() {
             onChange={e => setForm({ ...form, url: e.target.value })} placeholder="https://..." />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn-primary" onClick={submit}>{editId ? 'Lưu' : 'Thêm nguồn'}</button>
+          <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Đang lưu…' : (editId ? 'Lưu' : 'Thêm nguồn')}</button>
           {editId && <button className="btn-secondary" onClick={() => { setForm(empty); setEditId(null); }}>Hủy</button>}
         </div>
       </div>

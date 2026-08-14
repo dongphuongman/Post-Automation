@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { notifyError, confirmDialog } from '@/components/ui/Notify';
+import { notifyError, notifySuccess, confirmDialog } from '@/components/ui/Notify';
 
 export type SocialPlatform = 'x' | 'threads' | 'instagram';
 
@@ -46,6 +46,7 @@ export function useSocial() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi lưu tài khoản'); return false; }
+    notifySuccess(`Đã lưu ${payload.platform.toUpperCase()}`);
     await fetchAccount(payload.platform);
     return true;
   }, [fetchAccount]);
@@ -53,6 +54,7 @@ export function useSocial() {
   const deleteAccount = useCallback(async (platform: SocialPlatform) => {
     if (!(await confirmDialog(`Ngắt kết nối ${platform.toUpperCase()}?`, { title: 'Ngắt kết nối', confirmText: 'Ngắt', danger: true }))) return;
     await fetch(`/api/social-accounts?platform=${platform}`, { method: 'DELETE' });
+    notifySuccess(`Đã ngắt kết nối ${platform.toUpperCase()}`);
     await fetchAccount(platform);
   }, [fetchAccount]);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { notifyError } from '@/components/ui/Notify';
+import { notifyError, notifySuccess } from '@/components/ui/Notify';
 import { Stepper } from '@/components/layout/Stepper';
 import { StepResearch } from '@/components/pipeline/StepResearch';
 import { StepSelectArticles } from '@/components/pipeline/StepSelectArticles';
@@ -42,11 +42,17 @@ export default function PipelinePage() {
   const handleResearch = async () => {
     setResearchLoading(true);
     try {
-      await fetch('/api/research', {
+      const res = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceFilter }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        notifyError(data.error || 'Cào dữ liệu thất bại. Kiểm tra nguồn tin & cấu hình.');
+        return; // ở lại bước 1, KHÔNG sang bước 2
+      }
+      notifySuccess(typeof data.count === 'number' ? `Đã quét ${data.count} tin mới.` : 'Đã quét tin mới.');
       setStep(2);
     } catch (err) {
       notifyError('Lỗi kết nối mạng khi cào dữ liệu!');

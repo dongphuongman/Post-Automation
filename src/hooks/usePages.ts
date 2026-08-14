@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { notifyError, confirmDialog } from '@/components/ui/Notify';
+import { notifyError, notifySuccess, confirmDialog } from '@/components/ui/Notify';
 
 export interface FbPage {
   id: string;
@@ -44,6 +44,7 @@ export function usePages() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi tạo Page'); return false; }
+    notifySuccess('Đã thêm Page');
     await fetchPages();
     return true;
   }, [fetchPages]);
@@ -54,6 +55,7 @@ export function usePages() {
     });
     const data = await res.json();
     if (!data.success) { notifyError(data.error || 'Lỗi cập nhật'); return false; }
+    notifySuccess('Đã cập nhật Page');
     await fetchPages();
     return true;
   }, [fetchPages]);
@@ -63,6 +65,7 @@ export function usePages() {
   const deletePage = useCallback(async (id: string) => {
     if (!(await confirmDialog('Xoá Page này (kèm các nhóm thuộc Page)?', { title: 'Xoá Page', confirmText: 'Xoá', danger: true }))) return;
     await fetch(`/api/pages?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    notifySuccess('Đã xoá Page');
     await fetchPages();
   }, [fetchPages]);
 

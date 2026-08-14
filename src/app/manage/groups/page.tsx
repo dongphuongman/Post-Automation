@@ -11,6 +11,7 @@ export default function ManageGroupsPage() {
   const [pageId, setPageId] = useState('');
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchGroups(); fetchPages(); }, [fetchGroups, fetchPages]);
   useEffect(() => { if (!pageId && pages.length) setPageId(pages[0].id); }, [pages, pageId]);
@@ -20,7 +21,9 @@ export default function ManageGroupsPage() {
   const submit = async () => {
     if (!pageId) { notify('Chọn Page', 'warning'); return; }
     if (!url.trim()) { notify('Nhập URL nhóm', 'warning'); return; }
+    setSaving(true);
     const okr = await createGroup({ page_id: pageId, url: url.trim(), name: name.trim() || undefined });
+    setSaving(false);
     if (okr) { setUrl(''); setName(''); }
   };
 
@@ -41,14 +44,14 @@ export default function ManageGroupsPage() {
           </select>
         </div>
         <div className="form-group">
-          <label className="form-label">URL nhóm</label>
+          <label className="form-label">URL nhóm <span className="form-req">*</span></label>
           <input className="input-field" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://www.facebook.com/groups/..." />
         </div>
         <div className="form-group">
           <label className="form-label">Tên gợi nhớ (tùy chọn)</label>
           <input className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Group AI Việt Nam" />
         </div>
-        <button className="btn-primary" onClick={submit} disabled={pages.length === 0}>Thêm nhóm</button>
+        <button className="btn-primary" onClick={submit} disabled={pages.length === 0 || saving}>{saving ? 'Đang lưu…' : 'Thêm nhóm'}</button>
       </div>
 
       <div className="section-header">
@@ -56,7 +59,9 @@ export default function ManageGroupsPage() {
         <span className="section-count">{groups.length}</span>
       </div>
 
-      {!loading && groups.length === 0 ? (
+      {loading && groups.length === 0 ? (
+        <div className="empty-state"><div className="empty-icon">⏳</div>Đang tải danh sách nhóm…</div>
+      ) : !loading && groups.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">👥</div>Chưa có nhóm nào.</div>
       ) : null}
 
