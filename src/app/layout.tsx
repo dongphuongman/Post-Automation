@@ -20,6 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <body>
+        {/* Áp theme đã lưu TRƯỚC khi paint để tránh nhấp nháy (FOUC). 'system' = xoá attr, để media query quyết định. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();` }} />
         <div className="app-layout">
           <Sidebar />
           <main className="main-content">

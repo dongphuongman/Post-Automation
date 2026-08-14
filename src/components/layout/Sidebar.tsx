@@ -8,10 +8,27 @@ export function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [me, setMe] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => { if (d.success) setMe(d.user); }).catch(() => {});
   }, [pathname]);
+
+  // Đọc theme đã lưu khi mount (khớp với script no-FOUC trong layout).
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem('theme');
+      setTheme(t === 'dark' || t === 'light' ? t : 'system');
+    } catch { /* ignore */ }
+  }, []);
+
+  const applyTheme = (t: 'light' | 'dark' | 'system') => {
+    setTheme(t);
+    try {
+      if (t === 'system') { localStorage.removeItem('theme'); document.documentElement.removeAttribute('data-theme'); }
+      else { localStorage.setItem('theme', t); document.documentElement.setAttribute('data-theme', t); }
+    } catch { /* ignore */ }
+  };
 
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -108,6 +125,16 @@ export function Sidebar() {
         </nav>
 
         <div className="sidebar-user">
+          <div className="theme-toggle" role="group" aria-label="Giao diện sáng/tối">
+            {([['light', '☀️', 'Sáng'], ['dark', '🌙', 'Tối'], ['system', '💻', 'Hệ thống']] as const).map(([val, icon, label]) => (
+              <button key={val} type="button"
+                className={`theme-toggle-btn ${theme === val ? 'active' : ''}`}
+                aria-pressed={theme === val} title={label}
+                onClick={() => applyTheme(val)}>
+                <span aria-hidden>{icon}</span><span className="theme-toggle-label">{label}</span>
+              </button>
+            ))}
+          </div>
           {me && (
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{me.name}</div>
