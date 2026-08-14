@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { notifyError } from '@/components/ui/Notify';
 
 interface RecentPost {
   id: string; status: string; video_status: string;
@@ -42,14 +43,20 @@ function statusColor(s: string) { return STATUS_META[s]?.color || '#64748b'; }
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/dashboard');
       const d = await res.json();
       if (d.success) setData(d);
-    } catch { console.error('dashboard load fail'); }
+      else { setError(d.error || 'Không tải được dashboard'); notifyError(d.error || 'Không tải được dashboard'); }
+    } catch {
+      setError('Lỗi mạng khi tải dashboard');
+      notifyError('Lỗi mạng khi tải dashboard');
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -85,10 +92,22 @@ export default function DashboardPage() {
           <h1 className="page-title">📊 Dashboard</h1>
           <p className="page-subtitle">Theo dõi hàng đợi bot &amp; cấu hình đang hoạt động.</p>
         </div>
-        <button className="btn-secondary" onClick={load} disabled={loading}>{loading ? '...' : '↻ Làm mới'}</button>
+        <button className="btn-secondary" onClick={load} disabled={loading}>{loading ? '↻ Đang tải…' : '↻ Làm mới'}</button>
       </div>
 
-      {!data ? <p className="form-hint">Đang tải...</p> : (
+      {!data ? (
+        error ? (
+          <div className="empty-state">
+            <div className="empty-icon">⚠️</div>
+            <p>{error}</p>
+            <button className="btn-secondary" style={{ marginTop: 12 }} onClick={load} disabled={loading}>
+              {loading ? 'Đang thử lại…' : '↻ Thử lại'}
+            </button>
+          </div>
+        ) : (
+          <div className="empty-state"><div className="empty-icon">⏳</div><p>Đang tải…</p></div>
+        )
+      ) : (
         <>
           <div className="stat-grid">
             {orderedStatuses.filter(s => data.statusCounts[s]).map(s => (
@@ -98,13 +117,13 @@ export default function DashboardPage() {
               </div>
             ))}
             {data.videoCounts.pending ? (
-              <div className="stat-tile" style={{ borderLeft: '4px solid #ec4899' }}>
+              <div className="stat-tile" style={{ borderLeft: '4px solid var(--pink)' }}>
                 <div className="stat-value">{data.videoCounts.pending}</div>
                 <div className="stat-label">Video chờ render</div>
               </div>
             ) : null}
             {data.videoCounts.error ? (
-              <div className="stat-tile" style={{ borderLeft: '4px solid #dc2626' }}>
+              <div className="stat-tile" style={{ borderLeft: '4px solid var(--danger)' }}>
                 <div className="stat-value">{data.videoCounts.error}</div>
                 <div className="stat-label">Video lỗi</div>
               </div>
