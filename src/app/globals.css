@@ -69,6 +69,7 @@
     --info-bg: #10233f; --info-fg: #93c5fd;
     --success-bg: #0b2a1a; --success-fg: #86efac;
     --danger-bg: #3b1113; --danger-fg: #fca5a5; --danger-border: #7f1d1d;
+    --sidebar-bg: linear-gradient(195deg, #181c28 0%, #1e2233 55%, #14171f 100%);
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.45);
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.55);
@@ -92,6 +93,7 @@
   --info-bg: #10233f; --info-fg: #93c5fd;
   --success-bg: #0b2a1a; --success-fg: #86efac;
   --danger-bg: #3b1113; --danger-fg: #fca5a5; --danger-border: #7f1d1d;
+  --sidebar-bg: linear-gradient(195deg, #181c28 0%, #1e2233 55%, #14171f 100%);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.45);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.55);
@@ -815,7 +817,7 @@ textarea.input-field {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: linear-gradient(195deg, #1e1b4b 0%, #312e81 100%);
+    background: var(--sidebar-bg);
     padding: 0 16px;
     padding-top: var(--safe-top);
     height: calc(var(--mobile-header-h) + var(--safe-top));
