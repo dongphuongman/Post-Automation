@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { notify } from '@/components/ui/Notify';
+import { notify, notifyError } from '@/components/ui/Notify';
+import { validateCookieJson } from '@/lib/cookie-check';
 import { useSocial, type SocialPlatform, type SocialAccount } from '@/hooks/useSocial';
 
 interface SectionCfg {
@@ -44,6 +45,11 @@ function Section({ cfg, account, save, remove }: {
 
   const submit = async () => {
     if (!account && !value) { notify('Dán ' + cfg.fieldLabel + ' để kết nối', 'warning'); return; }
+    if (cfg.field === 'cookies' && value) {
+      const keys = cfg.platform === 'x' ? ['auth_token', 'ct0'] : cfg.platform === 'instagram' ? ['sessionid'] : [];
+      const err = validateCookieJson(value, keys);
+      if (err) { notifyError(err); return; }
+    }
     setSaving(true);
     try { await save(cfg.platform, name, value); setName(''); setValue(''); }
     finally { setSaving(false); }

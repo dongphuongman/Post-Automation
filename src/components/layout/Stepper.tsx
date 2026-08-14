@@ -15,18 +15,20 @@ export function Stepper({ current, onChange }: StepperProps) {
   return (
     <div className="stepper">
       {STEPS.map(s => (
-        <div
+        <button
+          type="button"
           key={s.id}
           className={`step ${current === s.id ? 'active' : current > s.id ? 'completed' : ''}`}
           onClick={() => onChange(s.id)}
-          style={{ cursor: 'pointer' }}
+          aria-current={current === s.id ? 'step' : undefined}
+          aria-label={`Bước ${s.id}: ${s.label}`}
         >
           <span className="step-number">
             {current > s.id ? '✓' : s.id}
           </span>
           <span className="step-label">{s.label}</span>
           <span className="step-label-short">{s.short}</span>
-        </div>
+        </button>
       ))}
     </div>
   );

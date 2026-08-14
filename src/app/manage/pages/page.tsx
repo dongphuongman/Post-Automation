@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { notify } from '@/components/ui/Notify';
+import { notify, notifyError } from '@/components/ui/Notify';
+import { validateCookieJson } from '@/lib/cookie-check';
 import { usePages, type FbPage } from '@/hooks/usePages';
 
 const empty = { name: '', url: '', page_id: '', access_token: '', cookies: '' };
@@ -19,7 +20,11 @@ export default function ManagePagesPage() {
     // Chỉ gửi secret khi người dùng nhập (tránh ghi đè bằng chuỗi rỗng khi sửa).
     const payload: Record<string, string> = { name: form.name, url: form.url, page_id: form.page_id };
     if (form.access_token) payload.access_token = form.access_token;
-    if (form.cookies) payload.cookies = form.cookies;
+    if (form.cookies) {
+      const err = validateCookieJson(form.cookies, ['c_user']);
+      if (err) { notifyError(err); return; }
+      payload.cookies = form.cookies;
+    }
     setSaving(true);
     const okr = editId ? await updatePage({ ...payload, id: editId }) : await createPage(payload);
     setSaving(false);

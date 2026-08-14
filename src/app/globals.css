@@ -188,6 +188,10 @@ body {
   justify-content: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  /* reset button mặc định (step giờ là <button> để bàn phím dùng được) */
+  background: none;
+  border: none;
+  font-family: inherit;
 }
 
 .step:hover {

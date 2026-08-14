@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { notifyError, notifySuccess } from '@/components/ui/Notify';
+import { notifyError, notifySuccess, confirmDialog } from '@/components/ui/Notify';
 import { Stepper } from '@/components/layout/Stepper';
 import { StepResearch } from '@/components/pipeline/StepResearch';
 import { StepSelectArticles } from '@/components/pipeline/StepSelectArticles';
@@ -66,7 +66,20 @@ export default function PipelinePage() {
     if (success) setStep(3);
   };
 
-  const handlePublish = (target: PostTarget) => {
+  const handlePublish = async (target: PostTarget) => {
+    // Xác nhận cho các đích fan-out (đăng nhiều nơi, khó thu hồi).
+    const n = posts.selectedPosts.size;
+    if (target === 'all' || target === 'groups' || (target === 'page' && targetPageIds.length > 1)) {
+      const where = target === 'all'
+        ? `TẤT CẢ đích (Page + Nhóm)`
+        : target === 'groups'
+          ? `${targetGroupIds.length} nhóm`
+          : `${targetPageIds.length} Page`;
+      const okc = await confirmDialog(`Đăng ${n} bài lên ${where}? Thao tác này khó thu hồi.`, {
+        title: 'Xác nhận đăng', confirmText: 'Đăng',
+      });
+      if (!okc) return;
+    }
     posts.batchSchedule(target, scheduleStart, scheduleInterval, createVideo, {
       pageId: targetPageIds[0],
       pageIds: targetPageIds,
@@ -110,8 +123,10 @@ export default function PipelinePage() {
           loading={posts.loading}
           scheduleStart={scheduleStart}
           scheduleInterval={scheduleInterval}
+          createVideo={createVideo}
           onScheduleStartChange={setScheduleStart}
           onScheduleIntervalChange={setScheduleInterval}
+          onCreateVideoChange={setCreateVideo}
           onTogglePost={posts.toggleSelection}
           onImageChoice={posts.setImageChoice}
           onContentChange={posts.updateContent}

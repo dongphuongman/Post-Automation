@@ -41,10 +41,11 @@ export function PostCard({
           {post.article_title}
         </div>
         <textarea className="input-field"
-          style={{ minHeight: 120, marginBottom: 10 }}
+          style={{ minHeight: 120, marginBottom: 6 }}
           value={editedContent ?? post.content}
           onChange={e => onContentChange(post.id, e.target.value)} />
-        <input className="input-field"
+        <CharCounter text={editedContent ?? post.content ?? ''} />
+        <input className="input-field" style={{ marginTop: 10 }}
           value={editedHashtags ?? post.hashtags}
           onChange={e => onHashtagsChange(post.id, e.target.value)} />
       </div>
@@ -65,6 +66,20 @@ export function PostCard({
           {regenerating ? '⏳ Đang tạo…' : (post.generated_image_url ? '🔄 Tạo lại ảnh' : '✨ Tạo ảnh AI')}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Đếm ký tự + cảnh báo nền tảng nào sẽ cắt bớt (X 280, Threads 500, Instagram 2200).
+// Đích đăng chọn lúc bấm nút nên chỉ báo trước các giới hạn bị vượt.
+const PLATFORM_LIMITS: [string, number][] = [['X', 280], ['Threads', 500], ['Instagram', 2200]];
+function CharCounter({ text }: { text: string }) {
+  const len = text.length;
+  const exceeded = PLATFORM_LIMITS.filter(([, lim]) => len > lim).map(([name, lim]) => `${name} (${lim})`);
+  return (
+    <div style={{ fontSize: 12, color: exceeded.length ? 'var(--danger)' : 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <span>{len} ký tự</span>
+      {exceeded.length > 0 && <span>⚠️ vượt giới hạn: {exceeded.join(', ')} — sẽ bị cắt</span>}
     </div>
   );
 }

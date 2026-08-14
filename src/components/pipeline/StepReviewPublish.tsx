@@ -17,6 +17,8 @@ interface StepReviewPublishProps {
   loading: boolean;
   scheduleStart: string;
   scheduleInterval: number;
+  createVideo: boolean;
+  onCreateVideoChange: (value: boolean) => void;
   onScheduleStartChange: (value: string) => void;
   onScheduleIntervalChange: (value: number) => void;
   onTogglePost: (id: string) => void;
@@ -40,7 +42,9 @@ export function StepReviewPublish(props: StepReviewPublishProps) {
         onPagesChange={props.onTargetPagesChange} onGroupsChange={props.onTargetGroupsChange} />
 
       <ScheduleSettings scheduleStart={props.scheduleStart} scheduleInterval={props.scheduleInterval}
-        onStartChange={props.onScheduleStartChange} onIntervalChange={props.onScheduleIntervalChange} />
+        createVideo={props.createVideo}
+        onStartChange={props.onScheduleStartChange} onIntervalChange={props.onScheduleIntervalChange}
+        onCreateVideoChange={props.onCreateVideoChange} />
 
       <div className="section-header">
         <h3 className="section-title">

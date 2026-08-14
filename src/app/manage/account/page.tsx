@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { notify } from '@/components/ui/Notify';
+import { notify, notifyError } from '@/components/ui/Notify';
+import { validateCookieJson } from '@/lib/cookie-check';
 import { useAccount } from '@/hooks/useAccount';
 
 const empty = { name: '', cookies: '' };
@@ -19,6 +20,10 @@ export default function ManageAccountPage() {
     if (form.name) payload.name = form.name;
     if (form.cookies) payload.cookies = form.cookies;
     if (!account && !form.cookies) { notify('Dán Cookies JSON để kết nối', 'warning'); return; }
+    if (form.cookies) {
+      const err = validateCookieJson(form.cookies, ['c_user']);
+      if (err) { notifyError(err); return; }
+    }
     setSaving(true);
     const okr = await saveAccount(payload);
     setSaving(false);
