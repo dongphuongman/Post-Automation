@@ -18,9 +18,6 @@ export function Sidebar() {
     window.location.href = '/login';
   };
 
-  // Trang đăng nhập: KHÔNG hiện sidebar (chưa đăng nhập không thấy hệ thống có gì).
-  if (pathname === '/login') return null;
-
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -33,6 +30,10 @@ export function Sidebar() {
     }
     return () => { document.body.style.overflow = ''; };
   }, [open]);
+
+  // Trang đăng nhập: KHÔNG hiện sidebar. Đặt SAU mọi hook để không vi phạm Rules of
+  // Hooks (early return trước hook làm số hook đổi giữa các lần render → React crash).
+  if (pathname === '/login') return null;
 
   return (
     <>
@@ -106,15 +107,15 @@ export function Sidebar() {
           </Link>
         </nav>
 
-        {me && (
-          <div className="sidebar-user">
+        <div className="sidebar-user">
+          {me && (
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{me.name}</div>
               <div className="sidebar-user-role">{me.email} · {me.role}</div>
             </div>
-            <button className="sidebar-logout" onClick={logout}>Đăng xuất</button>
-          </div>
-        )}
+          )}
+          <button className="sidebar-logout" onClick={logout}>Đăng xuất</button>
+        </div>
       </aside>
     </>
   );

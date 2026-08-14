@@ -85,6 +85,7 @@ body {
   padding: 4px 12px 24px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   margin-bottom: 16px;
+  flex-shrink: 0;        /* brand không co lại khi menu dài */
 }
 
 .sidebar-title {
@@ -107,6 +108,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1 1 auto;        /* chiếm khoảng trống giữa brand và khối user */
+  min-height: 0;         /* cho phép co lại để overflow-y hoạt động trong flex */
+  overflow-y: auto;      /* menu dài → tự cuộn, KHÔNG đẩy nút Đăng xuất ra ngoài */
+  overscroll-behavior: contain;
 }
 
 .sidebar-link {
@@ -1075,12 +1080,13 @@ textarea.input-field {
 }
 
 .sidebar-user {
-  margin-top: auto;
+  margin-top: 8px;
   padding-top: 14px;
   border-top: 1px solid rgba(255,255,255,0.12);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-shrink: 0;        /* khối user + nút Đăng xuất luôn hiện, không bị co/clip */
 }
 
 .sidebar-user-name { font-weight: 700; font-size: 14px; color: #fff; }
