@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { Post, ImageType } from '@/types';
 
 interface PostCardProps {
@@ -88,18 +89,19 @@ function ImgOption({ label, bg, url, proxy, selected, onClick, disabled }: {
   label: string; bg: string; url: string | null; proxy?: boolean;
   selected: boolean; onClick: () => void; disabled: boolean;
 }) {
+  const [broken, setBroken] = useState(false);
   const src = url && proxy && !url.startsWith('data:')
     ? `/api/image-proxy?url=${encodeURIComponent(url)}` : url;
   return (
     <div className={`img-option ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
       onClick={disabled ? undefined : onClick}>
       <span className="img-label" style={{ background: bg }}>{label}</span>
-      {url ? (
-        <img src={src!} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
-          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+      {url && !broken ? (
+        <img src={src!} alt={label} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }}
+          onError={() => setBroken(true)} />
       ) : (
         <span className="img-placeholder">
-          {proxy ? 'Không có ảnh gốc' : 'AI không tạo được ảnh'}
+          {!url ? (proxy ? 'Không có ảnh gốc' : 'AI không tạo được ảnh') : 'Ảnh lỗi / không tải được'}
         </span>
       )}
       {selected && <div className="img-check">✓</div>}

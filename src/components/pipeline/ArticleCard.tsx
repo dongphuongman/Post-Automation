@@ -15,10 +15,12 @@ export function ArticleCard({ article, selected, format, onToggle, onSetFormat }
     <div
       className={`card mobile-col ${selected ? 'card-selected' : ''}`}
       style={{ padding: 24, display: 'flex', gap: 16, alignItems: 'flex-start', cursor: 'pointer' }}
+      role="checkbox" aria-checked={selected} tabIndex={0}
       onClick={() => onToggle(article.id)}
+      onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggle(article.id); } }}
     >
       <div className="checkbox-wrapper">
-        <input type="checkbox" className="checkbox" checked={selected} readOnly />
+        <input type="checkbox" className="checkbox" checked={selected} readOnly tabIndex={-1} aria-hidden />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="article-meta" style={{ marginBottom: 10 }}>
@@ -35,15 +37,15 @@ export function ArticleCard({ article, selected, format, onToggle, onSetFormat }
           {article.title}
         </h4>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-          {article.summary?.substring(0, 200)}
+          {article.summary && article.summary.length > 200 ? article.summary.substring(0, 200) + '…' : article.summary}
         </p>
         <div className="mobile-wrap" style={{ display: 'flex', gap: 10 }} onClick={e => e.stopPropagation()}>
           <button className={`tag ${format === 'pov' ? 'active' : ''}`}
-            onClick={() => onSetFormat(article.id, 'pov')}>
+            onClick={() => { onSetFormat(article.id, 'pov'); if (!selected) onToggle(article.id); }}>
             📝 POV (Góc nhìn)
           </button>
           <button className={`tag ${format === 'info' ? 'active' : ''}`}
-            onClick={() => onSetFormat(article.id, 'info')}>
+            onClick={() => { onSetFormat(article.id, 'info'); if (!selected) onToggle(article.id); }}>
             📊 Info (Tin tức)
           </button>
         </div>

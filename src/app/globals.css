@@ -55,6 +55,28 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ===== A11Y: focus rõ ràng cho bàn phím (nhiều control đã tắt tap-highlight) ===== */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Trên nền tối (sidebar) dùng ring trắng cho tương phản */
+.sidebar-link:focus-visible, .sidebar-logout:focus-visible,
+.sidebar-close:focus-visible, .mobile-menu-btn:focus-visible {
+  outline-color: #fff;
+}
+
+/* ===== Tôn trọng prefers-reduced-motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ===== APP LAYOUT ===== */
 .app-layout {
   display: flex;
@@ -357,8 +379,9 @@ textarea.input-field {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 18px;
-  border-radius: 10px;
+  padding: 10px 18px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
   border: 1.5px solid var(--border);
   background: var(--surface);
   font-size: 13px;
@@ -428,9 +451,9 @@ textarea.input-field {
 .btn-danger {
   background: transparent;
   color: var(--danger);
-  border: 1.5px solid #fecaca;
+  border: 1.5px solid var(--danger-border);
   padding: 10px 20px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -446,7 +469,7 @@ textarea.input-field {
 }
 
 .btn-danger:hover {
-  background: #fef2f2;
+  background: var(--danger-bg);
   border-color: var(--danger);
 }
 
@@ -463,16 +486,18 @@ textarea.input-field {
   border-radius: 6px;
   letter-spacing: 0.3px;
   text-transform: uppercase;
+  background: var(--border-light);
+  color: var(--text-secondary);
 }
 
 .badge-pov {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--warning-bg);
+  color: var(--warning-fg);
 }
 
 .badge-info {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--info-bg);
+  color: var(--info-fg);
 }
 
 .badge-source {
